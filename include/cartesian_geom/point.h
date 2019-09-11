@@ -45,6 +45,10 @@ public:
     void set_coord(const unsigned int i, FT coord) {
         coeffs[i] = coord;
     }
+
+    Coeff get_coeffs() {
+        return coeffs;
+    }
     
     FT operator[] (const unsigned int i) {
         return coeffs[i];

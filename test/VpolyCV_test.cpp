@@ -54,7 +54,7 @@ void test_CV_volume(Polytope &VP, NT expected, NT tolerance=0.25)
         vars<NT, RNGType> var2(rnum,n,10 + n/10,n_threads,err,e,0,0,0,0,rng,
                                urdist,urdist1,-1.0,false,false,false,false,false,false,true,false);
         vars_g<NT, RNGType> var1(n,walk_len,N,W,1,e,CheBall.second,rng,C,frac,ratio,delta,false,
-                                 false,false,false,false,false,false,true,false);
+                                 false,false,false,false,false,false,true,false,false);
         vol += volume_gaussian_annealing(VP, var1, var2, CheBall);
 
     }

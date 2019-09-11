@@ -442,7 +442,7 @@ int main(const int argc, const char** argv)
       vars<NT, RNGType> var1(0, n, walk_len, 1, 0, 0, 0, 0.0, 0, InnerBall.second, rng,
                 urdist, urdist1, delta, verbose, rand_only, round, NN, birk, ball_walk, cdhr, rdhr);
       vars_g<NT, RNGType> var2(n, walk_len, N, W, 1, 0, InnerBall.second, rng, C, frac, ratio, delta,
-                  false, verbose, rand_only, round, NN, birk, ball_walk, cdhr, rdhr);
+                  false, verbose, rand_only, round, NN, birk, ball_walk, cdhr, rdhr,false);
 
       double tstart11 = (double)clock()/(double)CLOCKS_PER_SEC;
       if (Zono) {
@@ -504,7 +504,7 @@ int main(const int argc, const char** argv)
                        urdist,urdist1,delta,verbose,rand_only,round,NN,birk,ball_walk,cdhr,rdhr);
 
               vars_g<NT, RNGType> var1(n,walk_len,N,W,1,error,InnerBall.second,rng,C,frac,ratio,delta,false,
-                          verbose,rand_only,round,NN,birk,ball_walk,cdhr,rdhr);
+                          verbose,rand_only,round,NN,birk,ball_walk,cdhr,rdhr,false);
 
               if (Zono) {
                   vol = volume_gaussian_annealing(ZP, var1, var2, InnerBall);

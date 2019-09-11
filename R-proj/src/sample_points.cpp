@@ -10,6 +10,7 @@
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include <chrono>
+#define VOLESTI_DEBUG
 #include "cartesian_geom/cartesian_kernel.h"
 #include <boost/random.hpp>
 #include <boost/random/uniform_int.hpp>
@@ -19,6 +20,8 @@
 #include "polytopes.h"
 #include "samplers.h"
 #include "gaussian_samplers.h"
+#include "hmc_heur_sam.h"
+#include "hmc_rk4.h"
 #include "sample_only.h"
 #include "simplex_samplers.h"
 #include "vpolyintersectvpoly.h"
@@ -101,7 +104,8 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P = R_NilValue
 
     int type, dim, numpoints;
     NT radius = 1.0, delta = -1.0;
-    bool set_mean_point = false, cdhr = true, rdhr = false, ball_walk = false, gaussian = false;
+    bool set_mean_point = false, cdhr = false, rdhr = false, ball_walk = false, gaussian = false, gibbs = false,
+          hmc = false, rk4 = false;
     std::list<Point> randPoints;
     std::pair<Point, NT> InnerBall;
 
@@ -187,37 +191,42 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P = R_NilValue
         }
         if(walk_step.isNotNull()) walkL = Rcpp::as<unsigned int>(walk_step);
 
-        NT a = 0.5;
-
-        if (Rcpp::as<Rcpp::List>(Parameters).containsElementNamed("variance"))
-            a = 1.0 / (2.0 * Rcpp::as<NT>(Rcpp::as<Rcpp::List>(Parameters)["variance"]));
+        if (distribution.isNotNull()) {
+            if (Rcpp::as<std::string>(distribution).compare(std::string("gaussian"))==0) {
+                gaussian = true;
+            } else if (Rcpp::as<std::string>(distribution).compare(std::string("gibbs"))==0) {
+                gibbs = true;
+            } else if(Rcpp::as<std::string>(distribution).compare(std::string("uniform"))!=0) {
+                throw Rcpp::exception("Wrong distribution!");
+            }
+        }
 
         if(!WalkType.isNotNull() || Rcpp::as<std::string>(WalkType).compare(std::string("CDHR"))==0){
             cdhr = true;
-            rdhr = false;
-            ball_walk = false;
         } else if (Rcpp::as<std::string>(WalkType).compare(std::string("RDHR"))==0) {
-            cdhr = false;
             rdhr = true;
-            ball_walk = false;
+        } else if (Rcpp::as<std::string>(WalkType).compare(std::string("HMC"))==0) {
+            if (type != 1) throw Rcpp::exception("HMC can be applies only to H-polytopes!");
+
+            hmc = true;
         } else if (Rcpp::as<std::string>(WalkType).compare(std::string("BW"))==0) {
-            if (Rcpp::as<Rcpp::List>(Parameters).containsElementNamed("BW_rad")) {
+            if (Rcpp::as<Rcpp::List>(Parameters).containsElementNamed("BW_rad"))
                 delta = Rcpp::as<NT>(Rcpp::as<Rcpp::List>(Parameters)["BW_rad"]);
-            }
-            cdhr = false;
-            rdhr = false;
+
             ball_walk = true;
         } else {
             throw Rcpp::exception("Unknown walk type!");
         }
 
-        if (distribution.isNotNull()) {
-            if (Rcpp::as<std::string>(distribution).compare(std::string("gaussian"))==0) {
-                gaussian = true;
-            } else if(Rcpp::as<std::string>(distribution).compare(std::string("uniform"))!=0) {
-                throw Rcpp::exception("Wrong distribution!");
-            }
-        }
+        NT a = (gibbs) ? 1.0/NT(Rcpp::as<MT>(Rcpp::as<Rcpp::Reference>(P).field("A")).rows()) : 0.5;
+        if (Rcpp::as<Rcpp::List>(Parameters).containsElementNamed("variance"))
+            a = 1.0 / (2.0 * Rcpp::as<NT>(Rcpp::as<Rcpp::List>(Parameters)["variance"]));
+
+
+        if (Rcpp::as<Rcpp::List>(Parameters).containsElementNamed("rk4"))
+            rk4 = Rcpp::as<bool>(Rcpp::as<Rcpp::List>(Parameters)["rk4"]);
+
+
         bool rand_only=false,
                 NN=false,
                 birk=false,
@@ -239,6 +248,7 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P = R_NilValue
                     InnerBall = HP.ComputeInnerBall();
                     if (!set_mean_point) MeanPoint = InnerBall.first;
                 }
+                //if (hmc_barrier && !gaussian) a = 1.0/NT(Rcpp::as<MT>(Rcpp::as<Rcpp::Reference>(P).field("A")).rows());
                 break;
             }
             case 2: {
@@ -294,10 +304,22 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P = R_NilValue
         vars<NT, RNGType> var1(1,dim,walkL,1,0.0,0.0,0,0.0,0,InnerBall.second,rng,urdist,urdist1,
                                delta,verbose,rand_only,false,NN,birk,ball_walk,cdhr,rdhr);
         vars_g<NT, RNGType> var2(dim, walkL, 0, 0, 1, 0, InnerBall.second, rng, 0, 0, 0, delta, false, verbose,
-                                 rand_only, false, NN, birk, ball_walk, cdhr, rdhr);
+                                 rand_only, false, NN, birk, ball_walk, cdhr, rdhr, hmc);
 
         switch (type) {
             case 1: {
+
+                MeanPoint = get_point_in_Dsphere<RNGType, Point>(HP.dimension(), InnerBall.second);
+                if (hmc) {
+                    if (gibbs) {
+                        if (!rk4) hmc_logbarrier<RNGType>(HP, MeanPoint, randPoints, a, numpoints);
+                        else
+                            hmc_logbarrier_rk2<RNGType>(HP, MeanPoint, walkL, randPoints, a, numpoints,
+                                                        InnerBall.second);
+
+                        break;
+                    }
+                }
                 sampling_only<Point>(randPoints, HP, walkL, numpoints, gaussian,
                                      a, MeanPoint, var1, var2);
                 break;
@@ -325,16 +347,18 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P = R_NilValue
 
     }
 
+
     Rcpp::NumericMatrix PointSet(dim,numpoints);
+
     typename std::list<Point>::iterator rpit=randPoints.begin();
     typename std::vector<NT>::iterator qit;
     unsigned int j = 0, i;
     for ( ; rpit!=randPoints.end(); rpit++, j++) {
         qit = (*rpit).iter_begin(); i=0;
-        for ( ; qit!=(*rpit).iter_end(); qit++, i++){
-            PointSet(i,j)=*qit;
-        }
+        for ( ; qit!=(*rpit).iter_end(); qit++, i++) PointSet(i,j)=*qit;
     }
+
     return PointSet;
+
 
 }

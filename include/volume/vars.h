@@ -93,12 +93,13 @@ public:
            bool birk,
            bool ball_walk,
            bool cdhr_walk,
-           bool rdhr_walk
+           bool rdhr_walk,
+           bool hmc_refl
     ) :
             n(n), walk_steps(walk_steps), N(N), W(W), n_threads(n_threads), error(error),
             che_rad(che_rad), rng(rng), C(C), frac(frac), ratio(ratio), delta(delta),
             deltaset(deltaset), verbose(verbose), rand_only(rand_only), round(round),
-            NN(NN),birk(birk),ball_walk(ball_walk),cdhr_walk(cdhr_walk), rdhr_walk(rdhr_walk){};
+            NN(NN),birk(birk),ball_walk(ball_walk),cdhr_walk(cdhr_walk), rdhr_walk(rdhr_walk), hmc_refl(hmc_refl){};
 
     unsigned int n;
     unsigned int walk_steps;
@@ -121,6 +122,7 @@ public:
     bool ball_walk;
     bool cdhr_walk;
     bool rdhr_walk;
+    bool hmc_refl;
 };
 
 #endif

@@ -419,6 +419,7 @@ public:
     bool get_points_for_rounding (T &randPoints) {
         return false;
     }
+
 };
 
 
@@ -768,6 +769,7 @@ public:
         }
         return true;
     }
+
 };
 
 
@@ -1022,6 +1024,7 @@ public:
     bool get_points_for_rounding (T &randPoints) {
         return false;
     }
+
 
 };
 

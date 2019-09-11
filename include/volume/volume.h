@@ -267,11 +267,12 @@ NT volume_gaussian_annealing(Polytope &P,
                              GParameters &var,  // constans for volume
                              UParameters &var2,
                              std::pair<Point,NT> InnerBall) {
-    //typedef typename Polytope::MT 	MT;
+
+    typedef typename Polytope::MT 	MT;
     typedef typename Polytope::VT 	VT;
     typedef typename UParameters::RNGType RNGType;
-    const NT maxNT = 1.79769e+308;
-    const NT minNT = -1.79769e+308;
+    const NT maxNT = std::numeric_limits<NT>::max();
+    const NT minNT = std::numeric_limits<NT>::lowest();
     NT vol;
     bool round = var.round, done;
     bool print = var.verbose;
@@ -279,8 +280,7 @@ NT volume_gaussian_annealing(Polytope &P,
     unsigned int n = var.n, steps;
     unsigned int walk_len = var.walk_steps, m = P.num_of_hyperplanes();
     unsigned int n_threads = var.n_threads, min_index, max_index, index, min_steps;
-    NT error = var.error, curr_eps, min_val, max_val, val;
-    NT frac = var.frac;
+    NT error = var.error, curr_eps, min_val, max_val, val, frac = var.frac;
     RNGType &rng = var.rng;
     typedef typename std::vector<NT>::iterator viterator;
 
@@ -311,20 +311,22 @@ NT volume_gaussian_annealing(Polytope &P,
         c = res.first; radius = res.second;
     }
 
-    // Save the radius of the Chebychev ball
-    var.che_rad = radius;
-
     // Move chebychev center to origin and apply the same shifting to the polytope
-    VT c_e(n);
-    for(unsigned int i=0; i<n; i++){
-        c_e(i)=c[i];  // write chebychev center in an eigen vector
-    }
-    P.shift(c_e);
+    P.shift(Eigen::Map<VT>(&c.get_coeffs()[0], c.dimension()));
+
+    // Scale the polytope s.t. the radius of the chebychev ball equals to 1
+    P.set_mat(P.get_mat() * (MT::Identity(n, n) * radius));
+    round_value *= std::pow(radius, NT(n));
+
+    // Maybe remove them
+    std::pair<Point,NT> res = P.ComputeInnerBall();
+    radius = res.second;
+    var.che_rad = radius;
+    //res.first.print();
 
     // Initialization for the schedule annealing
     std::vector<NT> a_vals;
-    NT ratio = var.ratio;
-    NT C = var.C;
+    NT ratio = var.ratio, C = var.C;
     unsigned int N = var.N;
 
     // Computing the sequence of gaussians
@@ -367,6 +369,8 @@ NT volume_gaussian_annealing(Polytope &P,
     // Compute the first point if CDHR is requested
     if(var.cdhr_walk){
         gaussian_first_coord_point(P,p,p_prev,coord_prev,var.walk_steps,*avalsIt,lamdas,var);
+    } else if (var.hmc_refl){
+        p = get_point_in_Dsphere<RNGType, Point>(P.dimension(), radius);
     }
     for ( ; fnIt != fn.end(); fnIt++, itsIt++, avalsIt++, i++) { //iterate over the number of ratios
         //initialize convergence test

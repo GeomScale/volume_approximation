@@ -71,6 +71,14 @@ public:
         return rad;
     }
 
+    MT get_mat() {
+        return P1.get_mat();
+    }
+
+    VT get_vec() {
+        return P1.get_vec();
+    }
+
     MT get_mat1() {
         return P1.get_mat();
     }
@@ -78,6 +86,8 @@ public:
     MT get_mat2() {
         return P2.get_mat();
     }
+
+    void set_mat(MT A) {};
 
     void print() {
         //std::cout<<"First polytope:\n";
