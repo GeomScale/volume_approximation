@@ -19,6 +19,11 @@ from gurobipy import GRB
 # For the read the json format BIGG files function
 import json
 import scipy.io
+
+# For the scaling routine
+from scipy.sparse import diags
+import math
+
 # ----------------------------------------------------------------------------------
 
 # Set the time
@@ -228,50 +233,59 @@ def pre_process(A, b, Aeq, beq):
 
             # Loop through the lines of the A matrix, set objective function for each and run the model
             for i in range(A.shape[0]):
+            
+               if Aeq_new.shape[0] < Aeq_new.shape[1] - 10:
 
-               # Set the ith row of the A matrix as the objective function
-               objective_function = A[i,]
-
-               # Set the objective function in the model
-               model.setMObjective(None, objective_function, 0.0, None, None, x, GRB.MINIMIZE)
-               model.update()
-
-               # Optimize model
-               model.optimize ()
-
-               # If optimized
-               status = model.status
-               if status == GRB.OPTIMAL:
-
-                  # Get the max objective value
-                  max_objective = model.getObjective().getValue()
-                  max_fluxes.append(max_objective)
-
-               # Likewise, for the minimum
-               objective_function = np.asarray([-x for x in objective_function])
-               model.setMObjective(None, objective_function, 0.0, None, None, x, GRB.MINIMIZE)
-               model.update()
-               model.optimize()
-
-               # Again if optimized
-               status = model.status
-               if status == GRB.OPTIMAL:
-
-                  # Get the max objective value
-                  min_objective = model.getObjective().getValue()
-                  min_fluxes.append(min_objective)
-
-               # Calculate the width
-               width = abs(max_objective + min_objective) / np.linalg.norm(A[i,])
-
-               # Check whether we keep or not the equality
-               if width < 1e-07:
-                  Aeq_new = np.vstack((Aeq_new, A[i,]))
-                  beq_new = np.append(beq_new, max_objective)
-
+                  # Set the ith row of the A matrix as the objective function
+                  objective_function = A[i,]
+   
+                  # Set the objective function in the model
+                  model.setMObjective(None, objective_function, 0.0, None, None, x, GRB.MINIMIZE)
+                  model.update()
+   
+                  # Optimize model
+                  model.optimize ()
+   
+                  # If optimized
+                  status = model.status
+                  if status == GRB.OPTIMAL:
+   
+                     # Get the max objective value
+                     max_objective = model.getObjective().getValue()
+                     max_fluxes.append(max_objective)
+   
+                  # Likewise, for the minimum
+                  objective_function = np.asarray([-x for x in objective_function])
+                  model.setMObjective(None, objective_function, 0.0, None, None, x, GRB.MINIMIZE)
+                  model.update()
+                  model.optimize()
+   
+                  # Again if optimized
+                  status = model.status
+                  if status == GRB.OPTIMAL:
+   
+                     # Get the max objective value
+                     min_objective = model.getObjective().getValue()
+                     min_fluxes.append(min_objective)
+   
+                  # Calculate the width
+                  # width = abs(max_objective + min_objective) / np.linalg.norm(A[i,])
+                  width = abs(max_objective - min_objective)                  
+   
+                  # Check whether we keep or not the equality
+                  if width < 1e-07:
+                     Aeq_new = np.vstack((Aeq_new, A[i,]))
+                     # beq_new = np.append(beq_new, max_objective)
+                     beq_new = np.append(beq_new, min(max_objective, min_objective))
+   
+                  else:
+                     A_new = np.vstack((A_new, A[i,]))
+                     b_new = np.append(b_new, b[i])
+                     
                else:
                   A_new = np.vstack((A_new, A[i,]))
-                  b_new = np.append(b_new, b[i])
+                  b_new = np.append(b_new, b[i])                  
+               
 
             # The np.vstack() creates issues on changing contiguous c orded of np arrays; here we fix this
             Aeq_new = np.ascontiguousarray(Aeq_new, dtype=np.dtype)
@@ -380,6 +394,140 @@ def map_samples_on_initial_polytope(samples, T, T_shift, N, N_shift):
    return samples_on_initial_polytope
 
 
+def gmscale(A, iprint, scltol):
+
+   #--------------------------------------------------------------------------------------
+   #
+   # This function is a translation of a matlab cobra script you may find here:
+   # https://github.com/opencobra/cobratoolbox/blob/master/src/analysis/subspaces/gmscale.m 
+   #
+   # USAGE:
+   # cscale, rscale = gmscale(A, iprint, scltol)
+
+   # INPUTS:
+   #     A:          is a (m*n) sparse matrix 
+   #     scltol:      should be in the range (0.0, 1.0).
+   #              Typically `scltol` = 0.9.  A bigger value like 0.99 asks
+   #              gmscale` to work a little harder (more passes).   
+
+   # OUTPUTS:
+   #    cscale, rscale:    column vectors of column and row scales such that
+   #                       `R` (inverse) `A` `C` (inverse) should have entries near 1.0,
+   #                        where `R= diag(rscale)`, `C = diag(cscale)`.
+   #
+   #--------------------------------------------------------------------------------------
+   
+   m = A.shape[0] ; n = A.shape[1]
+   A = np.abs(A)
+   A_t = A.T     ##  Attention!!! We will work with the transpose matrix as numpy works row based while matlab is column based
+   maxpass = 10
+   aratio = 1e+50
+   damp = 1e-4
+   small = 1e-8
+   rscale = np.ones((m,1))
+   cscale = np.ones((n,1))
+
+   #----------------------------------------------------
+   # Main loop
+   #----------------------------------------------------
+
+   for npass in range(maxpass):
+      
+      rscale[rscale == 0] = 1
+      sparse = sp.csr_matrix(1./rscale)
+      r_diagonal_elements = np.asarray(sparse.todense())      
+      Rinv = diags(r_diagonal_elements[0].T, shape = (m,m)).toarray()
+      
+      SA = np.dot(Rinv, A)
+      SA_T = SA.T
+      
+      J, I = SA_T.nonzero()
+      V = SA.T[SA.T > 0]
+      invSA = sp.csr_matrix( (1./V, (J, I)), shape = (n, m) ).T
+      
+      cmax = np.max(SA, axis = 0)
+      cmin = np.max(invSA, axis = 0).data
+      cmin = 1./ (cmin + 2.2204e-16)
+      
+      sratio = np.max(cmax/cmin)
+      
+      if npass > 0:
+         c_product = np.multiply(np.max((np.array((cmin.data, damp*cmax))), axis =0), cmax)
+         cscale = np.sqrt(c_product)
+
+      check = aratio*scltol     
+      
+      if npass >= 2 and sratio >= check:
+         break
+
+      if npass == maxpass:
+         break
+      
+      aratio = sratio
+      
+      # Set new row scales for the next pass.
+      
+      cscale[cscale == 0] = 1
+      sparse = sp.csr_matrix(1./cscale)
+      c_diagonal_elements = np.asarray(sparse.todense())
+      
+      Cinv = diags(c_diagonal_elements[0].T, shape = (n,n)).toarray()      
+      SA = np.dot(A, Cinv)
+      SA_T = SA.T
+      
+      J, I = SA_T.nonzero()
+      V = SA.T[SA.T > 0]
+      invSA = sp.csr_matrix( (1./V, (J, I)), shape = (n, m) ).T
+      
+      rmax = np.max(SA, axis = 1)
+      rmin = np.max(invSA, axis = 1).data
+      tmp = rmin + 2.2204e-16
+      rmin = 1.0/tmp
+      
+      r_product = np.multiply(np.max((np.array((rmin.data, damp*rmax))), axis =0), rmax)
+      rscale = np.sqrt(r_product)      
+      
+   #----------------------------------------------------
+   # End of main loop
+   #----------------------------------------------------
+
+   # Reset column scales so the biggest element in each scaled column will be 1.
+   # Again, allow for empty rows and columns.
+   rscale[rscale == 0] = 1
+   sparse = sp.csr_matrix(1./rscale)
+   r_diagonal_elements = np.asarray(sparse.todense())      
+   Rinv = diags(r_diagonal_elements[0].T, shape = (m,m)).toarray()
+
+   SA = np.dot(Rinv, A)
+   SA_T = SA.T  
+   J, I = SA_T.nonzero()
+   V = SA.T[SA.T > 0]
+   
+   cscale = np.max(SA, axis = 0)
+   cscale[cscale == 0] = 1
+   
+   if iprint > 0 :
+   
+      rmin = np.amin(rscale) ; imin = np.where(rscale == np.amin(rscale))
+      cmin = np.amin(cscale) ; jmin = np.where(cscale == np.amin(cscale))
+      
+      rmax = np.amax(rscale) ; imax = np.where(rscale == np.amax(rscale))
+      cmax = np.amax(cscale) ; jmax = np.where(cscale == np.amax(cscale))
+      
+   return cscale, rscale
+
+def scaled_polytope(full_dim_polytope, cs, rs):
+   
+   m = rs.shape[0] ; n = cs.shape[0]
+   r_diagonal_matrix = diags(1/rs, shape = (m,m)).toarray()
+   c_diagonal_matrix = diags(1/cs, shape = (n,n)).toarray()   
+   
+   P_A = np.dot(r_diagonal_matrix, np.dot(full_dim_polytope.A, c_diagonal_matrix))
+   P_b = np.dot(r_diagonal_matrix, full_dim_polytope.b)
+   
+   return P_A, P_b, c_diagonal_matrix
+
+
 ################################################################################
 #                  Classes for the volesti C++ code                            #
 ################################################################################
@@ -405,6 +553,9 @@ cdef extern from "bindings.h":
       # Rounding H-Polytope
       void rounding(char* rounding_method, double* new_A, double* new_b, double* T_matrix, double* shift, double &round_value, \
          bool max_ball, double* inner_point, double radius);
+      
+      # Rounding svd step 
+      double rounding_svd_step(double* new_A, double* new_b, double* T_matrix, double* shift, double* inner_point, double radius)
 
    # The lowDimPolytopeCPP class along with its functions
    cdef cppclass lowDimHPolytopeCPP:
@@ -475,9 +626,52 @@ cdef class HPolytope:
                                  accelerated_billiard, billiard, ball_walk, a, L, max_ball, &inner_point_for_c[0], radius, &samples[0,0])
       return np.asarray(samples)      # we need to build a Python function for getting a starting point depending on the polytope
 
+# Special rounding function for the SVD case 
+   def rounding_svd(self, scale = None):
 
+      # Get the dimensions of the items about to build
+      n_hyperplanes, n_variables = self._A.shape[0], self._A.shape[1]
+
+      # Set the variables of those items; notice that they are all cdef type except of the last one which is about to be used
+      # both as a C++ and a Python variable
+      cdef double[:,::1] new_A = np.zeros((n_hyperplanes, n_variables), dtype=np.float64, order="C")
+      cdef double[::1] new_b = np.zeros(n_hyperplanes, dtype=np.float64, order="C")
+      cdef double[:,::1] T_matrix = np.zeros((n_variables, n_variables), dtype=np.float64, order="C")
+      cdef double[::1] shift = np.zeros((n_variables), dtype=np.float64, order="C")
+
+      # Get max ball for the initial polytope
+      temp_c, radius = get_max_ball(self._A, self._b)
+      cdef double[::1] inner_point_for_c = np.asarray(temp_c)
+      
+      # Build a while loop until for the rounding to converge
+      counterrr = 0
+      while True:
+
+         counterrr += 1
+         check = self.polytope_cpp.rounding_svd_step(&new_A[0,0], &new_b[0], &T_matrix[0,0], &shift[0], &inner_point_for_c[0], radius)
+         
+         if check < 2.0 and check > 1.0:
+            break
+
+         new_temp_c, radius = get_max_ball(new_A, new_b)
+         inner_point_for_c = np.asarray(new_temp_c)
+
+      np.save('A_rounded.npy', new_A) ; np.save('b_rounded.npy', new_b)
+      np.save('T_rounded.npy', T_matrix) ; np.save('shift_rounded.npy', shift)
+      
+      try:
+         if scale.size != 0:
+            T_matrix = np.dot(scale, T_matrix)
+      except:
+         pass
+         
+      return np.asarray(new_A), np.asarray(new_b), np.asarray(T_matrix), np.asarray(shift)
+
+     
+
+   
 # The rounding() function; like the compute_volume; there are more than one methods for this step
-   def rounding(self, rounding_method = 'max_ellipsoid', inner_point = [], radius = 0):
+   def rounding(self, rounding_method = 'max_ellipsoid', inner_point = [], radius = 0, scale = None):
 
       # Get the dimensions of the items about to build
       n_hyperplanes, n_variables = self._A.shape[0], self._A.shape[1]
@@ -509,6 +703,12 @@ cdef class HPolytope:
          np.save('A_rounded.npy', new_A) ; np.save('b_rounded.npy', new_b)
          np.save('T_rounded.npy', T_matrix) ; np.save('shift_rounded.npy', shift)
          np.save('round_value.npy', np.asarray(round_value))
+
+         try:
+            if scale.size != 0:
+               T_matrix = np.dot(scale, T_matrix)
+         except:
+            pass
 
          return np.asarray(new_A),np.asarray(new_b),np.asarray(T_matrix),np.asarray(shift),np.asarray(round_value)
 

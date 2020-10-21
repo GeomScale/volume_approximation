@@ -82,6 +82,29 @@ public:
         //_inner_ball = ComputeChebychevBall<NT, Point>(A, b);
     }
 
+   HPolytope& operator = (const HPolytope& other){
+      if (this != &other){ // protect against invalid self-assignment
+         _d = other._d;
+         A = other.A;
+         b = other.b;
+      }
+      return *this;
+   }
+   
+   HPolytope& operator = (HPolytope&& other){
+      if (this != &other){ // protect against invalid self-assignment
+         _d = other._d;
+         A = other.A;
+         b = other.b;
+      }
+      return *this;
+   }
+
+
+
+
+
+
 
     std::pair<Point, NT> InnerBall() const
     {

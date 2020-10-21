@@ -3,3 +3,4 @@ test/Testing/Temporary/CTestCostData.txt
 *.log
 .Rproj.user
 *.png
+volestipy/tests/testing_models/

@@ -25,6 +25,7 @@ compiler_args = [
   "-DBOOST_NO_AUTO_PTR",
  "-ldl",
  "-lm",
+ "-w"
 ]
 
 

@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print("b vector:")
     print(p.b)
 
-    samples = p.generate_samples(walk_len = 5, number_of_points = 80000, number_of_points_to_burn = 50, boundary = True, cdhr = True, rdhr = False, 
+    samples = p.generate_samples(walk_len = 5, number_of_points = 80000, number_of_points_to_burn = 50, boundary = False, cdhr = True, rdhr = False, 
               gaussian = False, set_L = False, billiard = False, ball_walk = False, a = 0, L = 0)
 
 

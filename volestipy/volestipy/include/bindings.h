@@ -26,6 +26,7 @@
 // for rounding
 #include "preprocess/min_sampling_covering_ellipsoid_rounding.hpp"
 #include "preprocess/svd_rounding.hpp"
+#include "preprocess/svd_rounding_step.hpp"
 #include "preprocess/max_inscribed_ellipsoid_rounding.hpp"
 #include "preprocess/get_full_dimensional_polytope.hpp"
 
@@ -38,15 +39,50 @@ typedef typename Hpolytope::VT    VT;
 typedef BoostRandomNumberGenerator<boost::mt19937, double>    RNGType;
 
 
+template <typename NT, typename MT, typename VT>
+struct svd_rounding_parameters
+{
+public:
+
+   svd_rounding_parameters() {}
+
+    svd_rounding_parameters(unsigned int d)
+        :   T(MT::Identity(d,d))
+        ,   T_shift(VT::Zero(d))
+        ,   num_rounding_steps(10*d)
+        ,   fail(false)
+        ,   converged(false)
+        ,   last_round_under_p(false)
+        ,   max_s(NT(0))
+        ,   prev_max_s(std::numeric_limits<NT>::max())
+        ,   round_it(1)
+    {}
+
+    MT T;
+    VT T_shift;
+    unsigned int num_rounding_steps;                                
+    bool fail;
+    bool converged;
+    bool last_round_under_p;
+    NT max_s;
+    NT prev_max_s;
+    unsigned int round_it;
+};
+
+
 // This is the HPolytopeCPP class; the main volesti class that is running the compute_volume(), rounding() and sampling() methods
 class HPolytopeCPP{
 
    public:
 
       std::pair<Point,NT> CheBall;
+      
 
       // regarding the rounding step
       typedef std::tuple<MT, VT, NT>    round_result;
+      typedef svd_rounding_parameters<NT, MT, VT> svd_params;
+
+      svd_params svd_parameters;
 
       // The class and its main specs
       HPolytopeCPP();
@@ -68,6 +104,10 @@ class HPolytopeCPP{
       // the rounding() function
       void rounding(char* rounding_method, double* new_A, double* new_b, double* T_matrix, double* shift, double &round_value,
        bool max_ball, double* inner_point, double radius);
+      
+      // the rounding_svd_step() function
+      double rounding_svd_step(double* new_A, double* new_b, double* T_matrix, double* shift,
+         double* inner_point, double radius);
       
 };
 

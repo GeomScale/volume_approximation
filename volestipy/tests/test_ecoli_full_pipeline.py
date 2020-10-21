@@ -31,8 +31,6 @@ max_fluxes = proc[5]
 
 # Get an object for the low_dim_HPolytope class for the pre-processed polytope
 low_hp = low_dim_HPolytope(A_proc, b_proc, Aeq_proc, beq_proc)
-#low_hp = low_dim_HPolytope(A, b, Aeq, beq)
-
 
 ## And then get the full dimensional polytope
 get_fd_hp = low_hp.full_dimensiolal_polytope()
@@ -41,19 +39,27 @@ b_fd = get_fd_hp[0].b
 N = get_fd_hp[1]
 N_shift = get_fd_hp[2]
 
+# Build an object of the full dimensional polytope
+hp = HPolytope(A_fd, b_fd)
+
+# And scale it
+cscale, rscale = gmscale(A_fd, 5, 0.9)
+scaled_A, scaled_b, diag_matrix = scaled_polytope(hp, cscale, rscale)
+
+# Now build a new object for the scaled full dimensional polytope
+hp_scaled = HPolytope(scaled_A, scaled_b)
+
 # Get the max ball for the full dimensional polytope
-max_ball_center_point, max_ball_radius = get_max_ball(A_fd, b_fd)
+max_ball_center_point, max_ball_radius = get_max_ball(scaled_A, scaled_b)
+
 
 ### Now we can use the full dimensional polytope; but before sampling on it, we need to round it
-
-# First, initialize an HPolytope using the full dimensional polytope features we got
-hp = HPolytope(A_fd, b_fd)
 
 ## Then use one of the volestipy functions for rounding
 rounding_returns = ["new_A","new_b","T_matrix","shift","round_val"]
 
 # Rounding by making use of max ball and the max_ellipsoid method
-rounding_output_max_ellipsoid = hp.rounding(rounding_method = "max_ellipsoid", inner_point = max_ball_center_point, radius = max_ball_radius)
+rounding_output_max_ellipsoid = hp_scaled.rounding(rounding_method = "max_ellipsoid", inner_point = max_ball_center_point, radius = max_ball_radius, scale = diag_matrix)
 rounded_A = rounding_output_max_ellipsoid[0]
 rounded_b = rounding_output_max_ellipsoid[1]
 rounded_T = rounding_output_max_ellipsoid[2]
