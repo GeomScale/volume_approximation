@@ -336,7 +336,7 @@ public:
 
 
     // check if point p belongs to the convex hull of V-Polytope P
-    int is_in(Point const& p) const
+    int is_in(Point const& p, NT tol=NT(0)) const
     {
         if(memLP_Zonotope(V, p, row_mem, colno_mem))
         {
@@ -477,6 +477,35 @@ public:
     {
         return line_intersect_coord(r, rand_coord, lamdas);
     }
+    
+
+    //------------------------------oracles for exponential sampling---------------//////
+
+    // compute intersection points of a ray starting from r and pointing to v
+    // with polytope discribed by A and b
+    std::pair<NT, int> quadratic_positive_intersect(Point const& r,
+                                    Point const& v,
+                                    VT const& Ac,
+                                    NT const& T,
+                                    VT& Ar,
+                                    VT& Av,
+                                    int& facet_prev) const
+    {
+        return std::make_pair(0, 0);
+    }
+
+    std::pair<NT, int> quadratic_positive_intersect(Point const& r,
+                                    Point const& v,
+                                    VT const& Ac,
+                                    NT const& T,
+                                    VT& Ar,
+                                    VT& Av,
+                                    NT const& lambda_prev,
+                                    int& facet_prev) const
+    {
+        return std::make_pair(0, 0);
+    }
+
 
 
     // shift polytope by a point c
