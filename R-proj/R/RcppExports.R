@@ -302,18 +302,19 @@ rounding <- function(P, method = NULL, seed = NULL) {
 #' \item{\code{starting_point} }{ A \eqn{d}-dimensional numerical vector that declares a starting point in the interior of the polytope for the random walk. The default choice is the center of the ball as that one computed by the function \code{inner_ball()}.}
 #' \item{\code{BaW_rad} }{ The radius for the ball walk.}
 #' \item{\code{L} }{ The maximum length of the billiard trajectory or the radius for the step of dikin, vaidya or john walk.}
-#' \item{\code{solver}} {Specify ODE solver for logconcave sampling. Options are i) leapfrog, ii) euler iii) runge-kutta iv) richardson}
-#' \item{\code{step_size} {Optionally chosen step size for logconcave sampling. Defaults to a theoretical value if not provided.}}
+#' \item{\code{solver} }{ Specify ODE solver for logconcave sampling. Options are i) leapfrog, ii) euler iii) runge-kutta iv) richardson}
+#' \item{\code{step_size }{ Optionally chosen step size for logconcave sampling. Defaults to a theoretical value if not provided.}}
 #' }
 #' @param distribution Optional. A list that declares the target density and some related parameters as follows:
 #' \itemize{
-#' \item{\code{density} }{ A string: (a) \code{'uniform'} for the uniform distribution or b) \code{'gaussian'} for the multidimensional spherical distribution. The default target distribution is uniform. c) Logconcave with form proportional to exp(-f(x)) where f(x) is L-smooth and m-strongly-convex. }
-#' \item{\code{variance} }{ The variance of the multidimensional spherical gaussian. The default value is 1.}
+#' \item{\code{density} }{ A string: (a) \code{'uniform'} for the uniform distribution or b) \code{'gaussian'} for the multidimensional spherical distribution c) \code{logconcave} with form proportional to exp(-f(x)) where f(x) is L-smooth and m-strongly-convex d) \code{'exponential'} for the exponential distribution. The default target distribution is uniform. }
+#' \item{\code{variance} }{ The variance of the multidimensional spherical gaussian or the exponential distribution. The default value is 1.}
 #' \item{\code{mode} }{ A \eqn{d}-dimensional numerical vector that declares the mode of the Gaussian distribution. The default choice is the center of the as that one computed by the function \code{inner_ball()}.}
-#' \item{\code{L_}} { Smoothness constant (for logconcave). }
-#' \item{\code{m}} { Strong-convexity constant (for logconcave). }
-#' \item{\code{negative_logprob}} { Negative log-probability (for logconcave). }
-#' \item{\code{negative_logprob_gradient}} { Negative log-probability gradient (for logconcave). }
+#' \item{\code{bias} }{ The bias vector for the exponential distribution. The default vector is \eqn{c_1 = 1} and \eqn{c_i = 0} for \eqn{i \neq 1}.}
+#' \item{\code{L_} }{ Smoothness constant (for logconcave). }
+#' \item{\code{m} }{ Strong-convexity constant (for logconcave). }
+#' \item{\code{negative_logprob} }{ Negative log-probability (for logconcave). }
+#' \item{\code{negative_logprob_gradient} }{ Negative log-probability gradient (for logconcave). }
 #' }
 #' @param seed Optional. A fixed seed for the number generator.
 #'

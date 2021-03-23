@@ -9,6 +9,7 @@
 
 // Contributed and/or modified by Alexandros Manochis, as part of Google Summer of Code 2020 program.
 
+
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include <chrono>
@@ -36,6 +37,7 @@ enum random_walks {
   brdhr,
   bcdhr,
   hmc,
+  exponential_hmc,
   uld
 };
 
@@ -50,7 +52,7 @@ template <
 >
 void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPoints,
         unsigned int const& walkL, unsigned int const& numpoints,
-        bool const& gaussian, NT const& a, NT const& L,
+        bool const& gaussian, NT const& a, NT const& L, Point const& c,
         Point const& StartingPoint, unsigned int const& nburns,
         bool const& set_L, random_walks walk,
         NegativeGradientFunctor *F=NULL, NegativeLogprobFunctor *f=NULL,
@@ -60,28 +62,28 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
     {
     case bcdhr:
         uniform_sampling_boundary <BCDHRWalk>(randPoints, P, rng, walkL, numpoints,
-                     StartingPoint, nburns);
+                                              StartingPoint, nburns);
         break;
     case brdhr:
         uniform_sampling_boundary <BRDHRWalk>(randPoints, P, rng, walkL, numpoints,
-                     StartingPoint, nburns);
+                                              StartingPoint, nburns);
         break;
     case cdhr:
         if(gaussian) {
             gaussian_sampling<GaussianCDHRWalk>(randPoints, P, rng, walkL, numpoints,
-                                             a, StartingPoint, nburns);
+                                                a, StartingPoint, nburns);
         } else {
             uniform_sampling<CDHRWalk>(randPoints, P, rng, walkL, numpoints,
-                                             StartingPoint, nburns);
+                                       StartingPoint, nburns);
         }
         break;
     case rdhr:
         if(gaussian) {
             gaussian_sampling<GaussianRDHRWalk>(randPoints, P, rng, walkL, numpoints,
-                                             a, StartingPoint, nburns);
+                                                a, StartingPoint, nburns);
         } else {
             uniform_sampling<RDHRWalk>(randPoints, P, rng, walkL, numpoints,
-                                             StartingPoint, nburns);
+                                       StartingPoint, nburns);
         }
         break;
     case vaidya_walk:
@@ -90,7 +92,7 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
             uniform_sampling(randPoints, P, rng, WalkType, walkL, numpoints, StartingPoint, nburns);
         } else {
             uniform_sampling<VaidyaWalk>(randPoints, P, rng, walkL, numpoints,
-                                     StartingPoint, nburns);
+                                         StartingPoint, nburns);
         }
         break;
     case dikin_walk:
@@ -99,7 +101,7 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
             uniform_sampling(randPoints, P, rng, WalkType, walkL, numpoints, StartingPoint, nburns);
         } else {
             uniform_sampling<DikinWalk>(randPoints, P, rng, walkL, numpoints,
-                                     StartingPoint, nburns);
+                                        StartingPoint, nburns);
         }
         break;
     case john_walk:
@@ -108,7 +110,7 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
             uniform_sampling(randPoints, P, rng, WalkType, walkL, numpoints, StartingPoint, nburns);
         } else {
             uniform_sampling<JohnWalk>(randPoints, P, rng, walkL, numpoints,
-                                    StartingPoint, nburns);
+                                       StartingPoint, nburns);
         }
         break;
     case billiard:
@@ -117,7 +119,7 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
             uniform_sampling(randPoints, P, rng, WalkType, walkL, numpoints, StartingPoint, nburns);
         } else {
             uniform_sampling<BilliardWalk>(randPoints, P, rng, walkL, numpoints,
-                     StartingPoint, nburns);
+                                           StartingPoint, nburns);
         }
         break;
     case accelarated_billiard:
@@ -126,7 +128,16 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
             uniform_sampling(randPoints, P, rng, WalkType, walkL, numpoints, StartingPoint, nburns);
         } else {
             uniform_sampling<AcceleratedBilliardWalk>(randPoints, P, rng, walkL, numpoints,
-                     StartingPoint, nburns);
+                                                      StartingPoint, nburns);
+        }
+        break;
+    case exponential_hmc:
+        if (set_L) {
+            ExponentialHamiltonianMonteCarloExactWalk WalkType(L);
+            exponential_sampling(randPoints, P, rng, WalkType, walkL, numpoints, c, a, StartingPoint, nburns);
+        } else {
+            exponential_sampling<ExponentialHamiltonianMonteCarloExactWalk>(randPoints, P, rng, walkL, numpoints, c, a,
+                                                                            StartingPoint, nburns);
         }
         break;
     case ball_walk:
@@ -134,19 +145,19 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
             if (gaussian) {
                 GaussianBallWalk WalkType(L);
                 gaussian_sampling(randPoints, P, rng, WalkType, walkL, numpoints, a,
-                                       StartingPoint, nburns);
+                                  StartingPoint, nburns);
             } else {
                 BallWalk WalkType(L);
                 uniform_sampling(randPoints, P, rng, WalkType, walkL, numpoints,
-                                       StartingPoint, nburns);
+                                 StartingPoint, nburns);
             }
         } else {
             if(gaussian) {
                 gaussian_sampling<GaussianBallWalk>(randPoints, P, rng, walkL, numpoints,
-                                                 a, StartingPoint, nburns);
+                                                    a, StartingPoint, nburns);
             } else {
                 uniform_sampling<BallWalk>(randPoints, P, rng, walkL, numpoints,
-                                                 StartingPoint, nburns);
+                                           StartingPoint, nburns);
             }
         }
         break;
@@ -228,18 +239,19 @@ void sample_from_polytope(Polytope &P, int type, RNGType &rng, PointList &randPo
 //' \item{\code{starting_point} }{ A \eqn{d}-dimensional numerical vector that declares a starting point in the interior of the polytope for the random walk. The default choice is the center of the ball as that one computed by the function \code{inner_ball()}.}
 //' \item{\code{BaW_rad} }{ The radius for the ball walk.}
 //' \item{\code{L} }{ The maximum length of the billiard trajectory or the radius for the step of dikin, vaidya or john walk.}
-//' \item{\code{solver}} {Specify ODE solver for logconcave sampling. Options are i) leapfrog, ii) euler iii) runge-kutta iv) richardson}
-//' \item{\code{step_size} {Optionally chosen step size for logconcave sampling. Defaults to a theoretical value if not provided.}}
+//' \item{\code{solver} }{ Specify ODE solver for logconcave sampling. Options are i) leapfrog, ii) euler iii) runge-kutta iv) richardson}
+//' \item{\code{step_size }{ Optionally chosen step size for logconcave sampling. Defaults to a theoretical value if not provided.}}
 //' }
 //' @param distribution Optional. A list that declares the target density and some related parameters as follows:
 //' \itemize{
-//' \item{\code{density} }{ A string: (a) \code{'uniform'} for the uniform distribution or b) \code{'gaussian'} for the multidimensional spherical distribution. The default target distribution is uniform. c) Logconcave with form proportional to exp(-f(x)) where f(x) is L-smooth and m-strongly-convex. }
-//' \item{\code{variance} }{ The variance of the multidimensional spherical gaussian. The default value is 1.}
+//' \item{\code{density} }{ A string: (a) \code{'uniform'} for the uniform distribution or b) \code{'gaussian'} for the multidimensional spherical distribution c) \code{logconcave} with form proportional to exp(-f(x)) where f(x) is L-smooth and m-strongly-convex d) \code{'exponential'} for the exponential distribution. The default target distribution is uniform. }
+//' \item{\code{variance} }{ The variance of the multidimensional spherical gaussian or the exponential distribution. The default value is 1.}
 //' \item{\code{mode} }{ A \eqn{d}-dimensional numerical vector that declares the mode of the Gaussian distribution. The default choice is the center of the as that one computed by the function \code{inner_ball()}.}
-//' \item{\code{L_}} { Smoothness constant (for logconcave). }
-//' \item{\code{m}} { Strong-convexity constant (for logconcave). }
-//' \item{\code{negative_logprob}} { Negative log-probability (for logconcave). }
-//' \item{\code{negative_logprob_gradient}} { Negative log-probability gradient (for logconcave). }
+//' \item{\code{bias} }{ The bias vector for the exponential distribution. The default vector is \eqn{c_1 = 1} and \eqn{c_i = 0} for \eqn{i \neq 1}.}
+//' \item{\code{L_} }{ Smoothness constant (for logconcave). }
+//' \item{\code{m} }{ Strong-convexity constant (for logconcave). }
+//' \item{\code{negative_logprob} }{ Negative log-probability (for logconcave). }
+//' \item{\code{negative_logprob_gradient} }{ Negative log-probability gradient (for logconcave). }
 //' }
 //' @param seed Optional. A fixed seed for the number generator.
 //'
@@ -308,6 +320,8 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
         rng.set_seed(seed_rcpp);
     }
 
+    Point c(dim);
+
     NT radius = 1.0, L;
     bool set_mode = false, gaussian = false, logconcave = false,
                     set_starting_point = false, set_L = false;
@@ -331,6 +345,9 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
             Rcpp::as<std::string>(Rcpp::as<Rcpp::List>(distribution)["density"]).compare(std::string("gaussian")) == 0) {
         gaussian = true;
     } else if (
+            Rcpp::as<std::string>(Rcpp::as<Rcpp::List>(distribution)["density"]).compare(std::string("exponential")) == 0) {
+        walk = exponential_hmc;
+    } else if (
             Rcpp::as<std::string>(Rcpp::as<Rcpp::List>(distribution)["density"]).compare(std::string("logconcave")) == 0) {
         logconcave = true;
     } else {
@@ -351,11 +368,16 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
     NT a = 0.5;
     if (Rcpp::as<Rcpp::List>(distribution).containsElementNamed("variance")) {
         a = 1.0 / (2.0 * Rcpp::as<NT>(Rcpp::as<Rcpp::List>(distribution)["variance"]));
-        if (!gaussian) {
+        if (walk == exponential_hmc) a = Rcpp::as<NT>(Rcpp::as<Rcpp::List>(distribution)["variance"]);
+        if (!gaussian && walk != exponential_hmc) {
             Rcpp::warning("The variance can be set only for Gaussian sampling!");
         } else if (a <= 0.0) {
             throw Rcpp::exception("The variance has to be positive!");
         }
+    }
+
+    if (Rcpp::as<Rcpp::List>(distribution).containsElementNamed("bias")) {
+        c = Point(Rcpp::as<VT>(Rcpp::as<Rcpp::List>(distribution)["bias"]));
     }
 
     if (Rcpp::as<Rcpp::List>(distribution).containsElementNamed("negative_logprob") &&
@@ -422,7 +444,7 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
             } else {
                 walk = rdhr;
             }
-        } else {
+        } else if(walk != exponential_hmc) {
             if (type == 1) {
                 walk = accelarated_billiard;
             } else {
@@ -485,10 +507,10 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
         walk = bcdhr;
     } else if (Rcpp::as<std::string>(Rcpp::as<Rcpp::List>(random_walk)["walk"]).compare(std::string("HMC")) == 0) {
         if (!logconcave) throw Rcpp::exception("HMC is not supported for non first-order sampling");
-      walk = hmc;
+        walk = hmc;
     } else if (Rcpp::as<std::string>(Rcpp::as<Rcpp::List>(random_walk)["walk"]).compare(std::string("ULD")) == 0) {
-      if (!logconcave) throw Rcpp::exception("ULD is not supported for non first-order sampling");
-      walk = uld;
+        if (!logconcave) throw Rcpp::exception("ULD is not supported for non first-order sampling");
+        walk = uld;
     } else {
         throw Rcpp::exception("Unknown walk type!");
     }
@@ -537,7 +559,7 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
                 StartingPoint = StartingPoint - mode;
                 HP.shift(mode.getCoefficients());
             }
-            sample_from_polytope(HP, type, rng, randPoints, walkL, numpoints, gaussian, a, L,
+            sample_from_polytope(HP, type, rng, randPoints, walkL, numpoints, gaussian, a, L, c,
                                  StartingPoint, nburns, set_L, walk, F, f, solver);
             break;
         }
@@ -558,7 +580,7 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
                 StartingPoint = StartingPoint - mode;
                 VP.shift(mode.getCoefficients());
             }
-            sample_from_polytope(VP, type, rng, randPoints, walkL, numpoints, gaussian, a, L,
+            sample_from_polytope(VP, type, rng, randPoints, walkL, numpoints, gaussian, a, L, c,
                                  StartingPoint, nburns, set_L, walk, F, f, solver);
             break;
         }
@@ -579,7 +601,7 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
                 StartingPoint = StartingPoint - mode;
                 ZP.shift(mode.getCoefficients());
             }
-            sample_from_polytope(ZP, type, rng, randPoints, walkL, numpoints, gaussian, a, L,
+            sample_from_polytope(ZP, type, rng, randPoints, walkL, numpoints, gaussian, a, L, c,
                                  StartingPoint, nburns, set_L, walk, F, f, solver);
             break;
         }
@@ -602,7 +624,7 @@ Rcpp::NumericMatrix sample_points(Rcpp::Nullable<Rcpp::Reference> P,
                 StartingPoint = StartingPoint - mode;
                 VPcVP.shift(mode.getCoefficients());
             }
-            sample_from_polytope(VPcVP, type, rng, randPoints, walkL, numpoints, gaussian, a, L,
+            sample_from_polytope(VPcVP, type, rng, randPoints, walkL, numpoints, gaussian, a, L, c,
                                  StartingPoint, nburns, set_L, walk, F, f, solver);
             break;
         }
