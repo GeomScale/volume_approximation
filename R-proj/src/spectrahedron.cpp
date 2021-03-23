@@ -7,6 +7,7 @@
 
 // Licensed under GNU LGPL.3, see LICENCE file
 
+
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include <chrono>

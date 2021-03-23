@@ -111,6 +111,8 @@ else ()
   add_executable (simple_sde simple_sde.cpp)
   add_executable (high_dimensional_hmc high_dimensional_hmc.cpp)
   add_executable (high_dimensional_hmc_rand_poly high_dimensional_hmc_rand_poly.cpp)
+  add_executable (exponential_exact_hmc exponential_exact_hmc.cpp)
+  add_executable (gaussian_exact_hmc gaussian_exact_hmc.cpp)
 
   TARGET_LINK_LIBRARIES(high_dimensional_hmc_rand_poly ${LP_SOLVE})
 

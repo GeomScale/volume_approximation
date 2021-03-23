@@ -50,7 +50,7 @@ public:
         return _inner_ball;
     }
 
-    int is_in(const Point &p) const {
+    int is_in(const Point &p, NT tol=NT(0)) const {
         if(P1.is_in(p)==-1)
             return P2.is_in(p);
         return 0;
@@ -321,6 +321,40 @@ public:
         return line_intersect_coord(r, rand_coord, lamdas);
     }
 
+
+    //------------------------------oracles for exponential sampling---------------//////
+
+    // compute intersection points of a ray starting from r and pointing to v
+    // with polytope discribed by A and b
+    std::pair<NT, int> quadratic_positive_intersect(Point const& r,
+                                    Point const& v,
+                                    VT const& Ac,
+                                    NT const& T,
+                                    VT& Ar,
+                                    VT& Av,
+                                    int& facet_prev) const
+    {
+        throw std::runtime_error("Quadratic polynomial trajectories are supported only for H-polytopes");
+    }
+
+    std::pair<NT, int> quadratic_positive_intersect(Point const& r,
+                                    Point const& v,
+                                    VT const& Ac,
+                                    NT const& T,
+                                    VT& Ar,
+                                    VT& Av,
+                                    NT const& lambda_prev,
+                                    int& facet_prev) const
+    {
+        throw std::runtime_error("Quadratic polynomial trajectories are supported only for H-polytopes");
+    }
+
+    //------------oracle for exact hmc spherical gaussian sampling---------------//
+    std::pair<NT, int> trigonometric_positive_intersect(Point const& r, Point const& v,
+                                                      NT const& omega, int &facet_prev) const
+    {
+        return std::make_pair(0, 0);
+    }
 
     // shift polytope by a point c
     void shift(const VT &c) {

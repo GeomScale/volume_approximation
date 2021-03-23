@@ -296,24 +296,25 @@ rounding <- function(P, method = NULL, seed = NULL) {
 #' @param n The number of points that the function is going to sample from the convex polytope.
 #' @param random_walk Optional. A list that declares the random walk and some related parameters as follows:
 #' \itemize{
-#' \item{\code{walk} }{ A string to declare the random walk: i) \code{'CDHR'} for Coordinate Directions Hit-and-Run, ii) \code{'RDHR'} for Random Directions Hit-and-Run, iii) \code{'BaW'} for Ball Walk, iv) \code{'BiW'} for Billiard walk, v) \code{'dikin'} for dikin walk, vi) \code{'vaidya'} for vaidya walk, vii) \code{'john'} for john walk, viii) \code{'BCDHR'} boundary sampling by keeping the extreme points of CDHR or ix) \code{'BRDHR'} boundary sampling by keeping the extreme points of RDHR x) \code{'HMC'} for Hamiltonian Monte Carlo (logconcave) xi) \code{'ULD'} for Underdamped Langevin Dynamics using the Randomized Midpoint Method. The default walk is \code{'aBiW'} for the uniform distribution or \code{'CDHR'} for the Gaussian distribution and H-polytopes and \code{'BiW'} or \code{'RDHR'} for the same distributions and V-polytopes and zonotopes.}
+#' \item{\code{walk} }{ A string to declare the random walk: i) \code{'CDHR'} for Coordinate Directions Hit-and-Run, ii) \code{'RDHR'} for Random Directions Hit-and-Run, iii) \code{'BaW'} for Ball Walk, iv) \code{'BiW'} for Billiard walk, v) \code{'dikin'} for dikin walk, vi) \code{'vaidya'} for vaidya walk, vii) \code{'john'} for john walk, viii) \code{'BCDHR'} boundary sampling by keeping the extreme points of CDHR or ix) \code{'BRDHR'} boundary sampling by keeping the extreme points of RDHR x) \code{'HMC'} for Hamiltonian Monte Carlo (logconcave densities) xi) \code{'ULD'} for Underdamped Langevin Dynamics using the Randomized Midpoint Method xii) \code{'ExactHMC'} for exact Hamiltonian Monte Carlo with reflections (spherical Gaussian or exponential distribution). The default walk is \code{'aBiW'} for the uniform distribution or \code{'CDHR'} for the Gaussian distribution and H-polytopes and \code{'BiW'} or \code{'RDHR'} for the same distributions and V-polytopes and zonotopes.}
 #' \item{\code{walk_length} }{ The number of the steps per generated point for the random walk. The default value is \eqn{1}.}
 #' \item{\code{nburns} }{ The number of points to burn before start sampling. The default value is \eqn{1}.}
 #' \item{\code{starting_point} }{ A \eqn{d}-dimensional numerical vector that declares a starting point in the interior of the polytope for the random walk. The default choice is the center of the ball as that one computed by the function \code{inner_ball()}.}
 #' \item{\code{BaW_rad} }{ The radius for the ball walk.}
 #' \item{\code{L} }{ The maximum length of the billiard trajectory or the radius for the step of dikin, vaidya or john walk.}
-#' \item{\code{solver}} {Specify ODE solver for logconcave sampling. Options are i) leapfrog, ii) euler iii) runge-kutta iv) richardson}
-#' \item{\code{step_size} {Optionally chosen step size for logconcave sampling. Defaults to a theoretical value if not provided.}}
+#' \item{\code{solver} }{ Specify ODE solver for logconcave sampling. Options are i) leapfrog, ii) euler iii) runge-kutta iv) richardson}
+#' \item{\code{step_size }{ Optionally chosen step size for logconcave sampling. Defaults to a theoretical value if not provided.}
 #' }
 #' @param distribution Optional. A list that declares the target density and some related parameters as follows:
 #' \itemize{
-#' \item{\code{density} }{ A string: (a) \code{'uniform'} for the uniform distribution or b) \code{'gaussian'} for the multidimensional spherical distribution. The default target distribution is uniform. c) Logconcave with form proportional to exp(-f(x)) where f(x) is L-smooth and m-strongly-convex. }
-#' \item{\code{variance} }{ The variance of the multidimensional spherical gaussian. The default value is 1.}
+#' \item{\code{density} }{ A string: (a) \code{'uniform'} for the uniform distribution or b) \code{'gaussian'} for the multidimensional spherical distribution c) \code{logconcave} with form proportional to exp(-f(x)) where f(x) is L-smooth and m-strongly-convex d) \code{'exponential'} for the exponential distribution. The default target distribution is the uniform distribution.}
+#' \item{\code{variance} }{ The variance of the multidimensional spherical gaussian or the exponential distribution. The default value is 1.}
 #' \item{\code{mode} }{ A \eqn{d}-dimensional numerical vector that declares the mode of the Gaussian distribution. The default choice is the center of the as that one computed by the function \code{inner_ball()}.}
-#' \item{\code{L_}} { Smoothness constant (for logconcave). }
-#' \item{\code{m}} { Strong-convexity constant (for logconcave). }
-#' \item{\code{negative_logprob}} { Negative log-probability (for logconcave). }
-#' \item{\code{negative_logprob_gradient}} { Negative log-probability gradient (for logconcave). }
+#' \item{\code{bias} }{ The bias vector for the exponential distribution. The default vector is \eqn{c_1 = 1} and \eqn{c_i = 0} for \eqn{i \neq 1}.}
+#' \item{\code{L_} }{ Smoothness constant (for logconcave). }
+#' \item{\code{m} }{ Strong-convexity constant (for logconcave). }
+#' \item{\code{negative_logprob} }{ Negative log-probability (for logconcave). }
+#' \item{\code{negative_logprob_gradient} }{ Negative log-probability gradient (for logconcave). }
 #' }
 #' @param seed Optional. A fixed seed for the number generator.
 #'
@@ -331,6 +332,9 @@ rounding <- function(P, method = NULL, seed = NULL) {
 #'
 #' @references \cite{Shen, Ruoqi, and Yin Tat Lee,
 #' \dQuote{"The randomized midpoint method for log-concave sampling.",} \emph{Advances in Neural Information Processing Systems}, 2019.}
+#'
+#' @references \cite{Augustin Chevallier, Sylvain Pion, Frederic Cazals,
+#' \dQuote{"Hamiltonian Monte Carlo with boundary reflections, and application to polytope volume calculations,"} \emph{Research Report preprint hal-01919855}, 2018.}
 #'
 #' @return A \eqn{d\times n} matrix that contains, column-wise, the sampled points from the convex polytope P.
 #' @examples
