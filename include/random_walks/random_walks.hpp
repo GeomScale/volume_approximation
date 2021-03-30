@@ -1,6 +1,7 @@
 // VolEsti (volume computation and sampling library)
 
-// Copyright (c) 2020 Vissarion Fisikopoulos
+// Copyright (c) 2020-2021 Vissarion Fisikopoulos
+// Copyright (c) 2020-2021 Apostolos Chalkis
 
 // Licensed under GNU LGPL.3, see LICENCE file
 
@@ -20,6 +21,9 @@
 #include "random_walks/uniform_john_walk.hpp"
 #include "random_walks/uniform_vaidya_walk.hpp"
 #include "random_walks/uniform_accelerated_billiard_walk.hpp"
+#include "random_walks/gaussian_hamiltonian_monte_carlo_exact_walk.hpp"
+#include "random_walks/exponential_hamiltonian_monte_carlo_exact_walk.hpp"
+#include "random_walks/uniform_accelerated_billiard_walk_parallel.hpp"
 #ifndef VOLESTIPY
     #include "random_walks/hamiltonian_monte_carlo_walk.hpp"
     #include "random_walks/langevin_walk.hpp"

@@ -8,6 +8,7 @@
 
 //Contributed and/or modified by Marios Papachristou, as part of Google Summer of Code 2018 and 2019 program.
 
+
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include <chrono>

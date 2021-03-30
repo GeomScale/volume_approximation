@@ -135,6 +135,66 @@ struct AcceleratedBilliardWalk
             p = _p;
         }
 
+
+        template
+        <
+            typename GenericPolytope
+        >
+        inline void get_starting_point(GenericPolytope const& P,
+                           Point const& center,
+                           Point &q,
+                           unsigned int const& walk_length,
+                           RandomNumberGenerator &rng)
+        {
+            unsigned int n = P.dimension();
+            NT T, Lmax = _L, max_dist, rad = 0.0, radius = P.InnerBall().second;
+
+            q = GetPointInDsphere<Point>::apply(n, radius, rng);
+            q += center;
+            initialize(P, q, rng);
+
+            apply(P, q, walk_length, rng);
+        }
+
+
+        template
+        <
+            typename GenericPolytope
+        >
+        inline void parameters_burnin(GenericPolytope const& P, 
+                                     Point const& center,
+                                     unsigned int const& num_points,
+                                     unsigned int const& walk_length,
+                                     RandomNumberGenerator &rng)
+        {
+            Point p = center;
+            std::vector<Point> pointset;
+            pointset.push_back(center);
+            pointset.push_back(_p);
+            NT rad = NT(0), max_dist, Lmax;
+
+            for (int i = 0; i < num_points; i++) 
+            {
+                apply(P, p, walk_length, rng);
+                max_dist = get_max_distance(pointset, p, rad);
+                if (max_dist > Lmax) 
+                {
+                    Lmax = max_dist;
+                }
+                pointset.push_back(p);
+            }
+
+            if (Lmax > _L) {
+                if (P.dimension() <= 2500) 
+                {
+                    update_delta(Lmax);
+                }
+            }
+            pointset.clear();
+        }
+
+        
+
         inline void update_delta(NT L)
         {
             _L = L;
@@ -192,6 +252,25 @@ struct AcceleratedBilliardWalk
                 P.compute_reflection(_v, _p, _update_parameters);
                 it++;
             }
+        }
+
+        inline double get_max_distance(std::vector<Point> &pointset, Point const& q, double &rad) 
+        {
+            double dis = -1.0, temp_dis;
+            int jj = 0;
+            for (auto vecit = pointset.begin(); vecit!=pointset.end(); vecit++, jj++) 
+            {
+                temp_dis = (q.getCoefficients() - (*vecit).getCoefficients()).norm();
+                if (temp_dis > dis) {
+                    dis = temp_dis;
+                }
+                if (jj == 0) {
+                    if (temp_dis > rad) {
+                        rad = temp_dis;
+                    }
+                }
+            }
+            return dis;
         }
 
         double _L;

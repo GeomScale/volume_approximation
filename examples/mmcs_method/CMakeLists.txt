@@ -55,6 +55,11 @@ else()
 
 endif(DISABLE_NLP_ORACLES)
 
+include("Eigen.cmake")
+GetEigen()
+
+include("Boost.cmake")
+GetBoost()
 
 # Find lpsolve library
 find_library(LP_SOLVE NAMES liblpsolve55.so PATHS /usr/lib/lp_solve)
@@ -104,17 +109,16 @@ else ()
   add_definitions(${CXX_COVERAGE_COMPILE_FLAGS} "-DBOOST_NO_AUTO_PTR")
   #add_definitions(${CXX_COVERAGE_COMPILE_FLAGS} "-lgslcblas")
   #add_definitions( "-O3 -lgsl -lm -ldl -lgslcblas" )
+  
+  find_package(OpenMP REQUIRED)
 
-  add_executable (simple_hmc simple_hmc.cpp)
-  add_executable (simple_ode simple_ode.cpp)
-  add_executable (simple_uld simple_uld.cpp)
-  add_executable (simple_sde simple_sde.cpp)
-  add_executable (high_dimensional_hmc high_dimensional_hmc.cpp)
-  add_executable (high_dimensional_hmc_rand_poly high_dimensional_hmc_rand_poly.cpp)
-  add_executable (exponential_exact_hmc exponential_exact_hmc.cpp)
-  add_executable (gaussian_exact_hmc gaussian_exact_hmc.cpp)
+  add_executable (skinny_cube_10_dim skinny_cube_10_dim.cpp)
+  add_executable (random_hpoly_50_dim random_hpoly_50_dim.cpp)
+  add_executable (random_hpoly_50_dim_parallel random_hpoly_50_dim_parallel.cpp)
 
-  TARGET_LINK_LIBRARIES(high_dimensional_hmc_rand_poly ${LP_SOLVE})
+  TARGET_LINK_LIBRARIES(skinny_cube_10_dim ${LP_SOLVE})
+  TARGET_LINK_LIBRARIES(random_hpoly_50_dim ${LP_SOLVE})
+  TARGET_LINK_LIBRARIES(random_hpoly_50_dim_parallel ${LP_SOLVE} OpenMP::OpenMP_CXX)
 
 
 endif()
