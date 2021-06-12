@@ -20,7 +20,6 @@ elseif(UNIX)
 	set(MKLROOT $ENV{HOME}/intel/mkl)
 endif()
 
-
 option(DISABLE_NLP_ORACLES "Disable non-linear oracles (used in collocation)" ON)
 option(BUILTIN_EIGEN "Use eigen from ../external" OFF)
 option(USE_MKL "Use MKL library to build eigen" OFF)
@@ -103,13 +102,22 @@ if(COMMAND cmake_policy)
        cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
+include("lpSolver.cmake")
+GetLPsolver()
+
 include("Eigen.cmake")
 GetEigen()
+
+#if(NOT DEFINED BOOST)
+#  message(FATAL_ERROR "This program requires the boost library, and will not be compiled.")
+#else()
+#  message(STATUS "BOOST is DEFINED")
+#endif()
 
 include("Boost.cmake")
 GetBoost()
 
-find_library(LP_SOLVE NAMES liblpsolve55.so liblpsolve55.dylib PATHS /usr/lib/lp_solve /usr/local/lib)
+find_library(LP_SOLVE NAMES liblpsolve55.so liblpsolve55.dylib PATHS /usr/lib/lp_solve /opt/local/lib)
 
 if (NOT LP_SOLVE)
 
@@ -119,7 +127,6 @@ else ()
 
   message(STATUS "Library lp_solve found: ${LP_SOLVE}")
   set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
-
 
   if (BUILTIN_EIGEN)
       include_directories (BEFORE ../external/Eigen)
@@ -138,7 +145,6 @@ else ()
 
   include_directories (BEFORE ../external)
   include_directories (BEFORE ../external/minimum_ellipsoid)
-  include_directories (BEFORE ../external/LPsolve_src/run_headers)
   include_directories (BEFORE ../include/generators)
   include_directories (BEFORE ../include/volume)
   include_directories (BEFORE ../include)
@@ -258,7 +264,6 @@ else ()
   add_test(NAME logconcave_sampling_test_uld
           COMMAND logconcave_sampling_test -tc=uld)
 
-
   TARGET_LINK_LIBRARIES(new_volume_example ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(volume_sob_hpolytope ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(volume_sob_vpolytope ${LP_SOLVE})
@@ -282,6 +287,5 @@ else ()
   else()
       TARGET_LINK_LIBRARIES(logconcave_sampling_test ${LP_SOLVE} ${IFOPT} ${IFOPT_IPOPT} ${PTHREAD} ${GMP} ${MPSOLVE} ${FFTW3} ${BLAS})
   endif()
-
 
 endif()

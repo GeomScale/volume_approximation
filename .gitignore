@@ -3,3 +3,7 @@ test/Testing/Temporary/CTestCostData.txt
 *.log
 .Rproj.user
 *.png
+test/build
+.vscode
+build
+.Rhistory
