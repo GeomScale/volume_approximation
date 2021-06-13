@@ -97,9 +97,13 @@ lic_dist = paste0(path,'/cran_package/inst/doc')
 dir_boost = paste0(path,'/cran_gen/cran_package/src/external/boost')
 unlink(dir_boost, recursive = TRUE)
 
-# deete eigen from external
+# delete eigen from external
 dir_eigen = paste0(path,'/cran_gen/cran_package/src/external/Eigen')
 unlink(dir_eigen, recursive = TRUE)
+
+# delete lpsolve from external
+dir_lpsolve = paste0(path,'/cran_gen/cran_package/src/external/LPsolve_src')
+unlink(dir_lpsolve, recursive = TRUE)
 
 # delete misc.h from include
 dir_misc = paste0(path,'/cran_gen/cran_package/src/include/misc.h')
@@ -110,22 +114,22 @@ dir_lin_ext = paste0(path,'/cran_gen/cran_package/src/include/linear_extensions.
 unlink(dir_lin_ext, recursive = TRUE)
 
 # create lpsolve folder
-dir.create(paste0(path,"/cran_gen/cran_package/src/external/lpsolve"))
-dir.create(paste0(path,"/cran_gen/cran_package/src/external/lpsolve/build"))
-dir.create(paste0(path,"/cran_gen/cran_package/src/external/lpsolve/headers"))
-dir_lp = paste0(path,"/cran_gen/cran_package/src/Rproj_externals/lp_solve")
-lp_dist = (paste0(path,"/cran_gen/cran_package/src/external/lpsolve/build"))
-file.copy(dir_lp, lp_dist, recursive=TRUE)
-dir_lp = paste0(path,"/cran_gen/cran_package/src/external/LPsolve_src/include")
-lp_dist = (paste0(path,"/cran_gen/cran_package/src/external/lpsolve/headers"))
-file.copy(dir_lp, lp_dist, recursive=TRUE)
-dir_lp = paste0(path,"/cran_gen/cran_package/src/external/LPsolve_src/run_headers")
-lp_dist = (paste0(path,"/cran_gen/cran_package/src/external/lpsolve/headers"))
-file.copy(dir_lp, lp_dist, recursive=TRUE)
-dir_lpsolve_heds = paste0(path,"/cran_gen/cran_package/src/external/LPsolve_src")
-unlink(dir_lpsolve_heds, recursive = TRUE)
-dir_lpsolve_heds = paste0(path,"/cran_gen/cran_package/src/Rproj_externals")
-unlink(dir_lpsolve_heds, recursive = TRUE)
+# dir.create(paste0(path,"/cran_gen/cran_package/src/external/lpsolve"))
+# dir.create(paste0(path,"/cran_gen/cran_package/src/external/lpsolve/build"))
+# dir.create(paste0(path,"/cran_gen/cran_package/src/external/lpsolve/headers"))
+# dir_lp = paste0(path,"/cran_gen/cran_package/src/Rproj_externals/lp_solve")
+# lp_dist = (paste0(path,"/cran_gen/cran_package/src/external/lpsolve/build"))
+# file.copy(dir_lp, lp_dist, recursive=TRUE)
+# dir_lp = paste0(path,"/cran_gen/cran_package/src/external/LPsolve_src/include")
+# lp_dist = (paste0(path,"/cran_gen/cran_package/src/external/lpsolve/headers"))
+# file.copy(dir_lp, lp_dist, recursive=TRUE)
+# dir_lp = paste0(path,"/cran_gen/cran_package/src/external/LPsolve_src/run_headers")
+# lp_dist = (paste0(path,"/cran_gen/cran_package/src/external/lpsolve/headers"))
+# file.copy(dir_lp, lp_dist, recursive=TRUE)
+# dir_lpsolve_heds = paste0(path,"/cran_gen/cran_package/src/external/LPsolve_src")
+# unlink(dir_lpsolve_heds, recursive = TRUE)
+# dir_lpsolve_heds = paste0(path,"/cran_gen/cran_package/src/Rproj_externals")
+# unlink(dir_lpsolve_heds, recursive = TRUE)
 
 # replace the Makefile
 makefile_dir = paste0(path,'/cran_gen/Makefile')
