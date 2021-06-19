@@ -37,9 +37,14 @@
 
 #include "generators/known_polytope_generators.h"
 #include "generators/h_polytopes_generator.h"
+#include "generators/convex_bodies_generator.h"
 
 #include "preprocess/svd_rounding.hpp"
 #include "misc/misc.h"
+
+#include "matrix_operations/EigenvaluesProblems.h"
+#include "SDPAFormatManager.h"
+#include "convex_bodies/spectrahedra_new/newSpectrahedron.h"
 
 template <typename NT>
 struct SimulationStats {
@@ -506,6 +511,7 @@ std::vector<SimulationStats<NT>> benchmark_polytope_sampling(
 
     std::cout << std::endl;
     print_diagnostics<NT, VT, MT>(samples, min_ess, std::cout);
+    std::cout << "min ess " << min_ess << "us" << std::endl;
     std::cout << "Average time per sample: " << ETA / max_actual_draws << "us" << std::endl;
     std::cout << "Average time per independent sample: " << ETA / min_ess << "us" << std::endl;
     std::cout << "Average number of reflections: " <<
@@ -529,6 +535,123 @@ std::vector<SimulationStats<NT>> benchmark_polytope_sampling(
 
     return std::vector<SimulationStats<NT>>{rdhr_stats, hmc_stats};
 }
+
+
+template <typename NT, typename Polytope>
+std::vector<SimulationStats<NT>> benchmark_spectrahedron_sampling(
+    Polytope &P,
+    NT eta=NT(-1),
+    unsigned int walk_length=3,
+    bool centered=false,
+    unsigned int max_draws=80000,
+    unsigned int num_burns=20000) {
+    typedef Cartesian<NT>    Kernel;
+    typedef typename Kernel::Point    Point;
+    typedef std::vector<Point> pts;
+    typedef boost::mt19937 RNGType;
+    typedef BoostRandomNumberGenerator<RNGType, NT> RandomNumberGenerator;
+    typedef InnerBallFunctor::GradientFunctor<Point> NegativeGradientFunctor;
+    typedef InnerBallFunctor::FunctionFunctor<Point> NegativeLogprobFunctor;
+    typedef LeapfrogODESolver<Point, NT, Polytope, NegativeGradientFunctor> Solver;
+    typedef typename Polytope::MT MT;
+    typedef typename Polytope::VT VT;
+
+    SimulationStats<NT> rdhr_stats;
+    SimulationStats<NT> hmc_stats;
+
+    std::pair<Point, NT> inner_ball;
+    if (centered) {
+        inner_ball.first = Point(P.dimension());
+        inner_ball.second = NT(1); // dummy radius (not correct one)
+    }
+
+    // Random number generator
+    RandomNumberGenerator rng(1);
+
+    // Chebyshev center
+    Point x0 = inner_ball.first;
+    NT R0 = inner_ball.second;
+    unsigned int dim = x0.dimension();
+    std::cout<<"dim = "<<dim<<std::endl;
+
+
+    // Declare oracles
+    InnerBallFunctor::parameters<NT, Point> params(x0, R0);
+
+    NegativeGradientFunctor F(params);
+    NegativeLogprobFunctor f(params);
+
+    GaussianRDHRWalk::Walk<Polytope, RandomNumberGenerator> gaussian_walk(P, x0, params.L, rng);
+
+    int max_actual_draws = max_draws - num_burns;
+    unsigned int min_ess = 0;
+
+    MT samples;
+    samples.resize(dim, max_actual_draws);
+    NT ETA;
+    NT max_psrf;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
+
+    HamiltonianMonteCarloWalk::parameters<NT, NegativeGradientFunctor> hmc_params(F, dim);
+
+    HamiltonianMonteCarloWalk::Walk
+      <Point, Polytope, RandomNumberGenerator, NegativeGradientFunctor, NegativeLogprobFunctor, Solver>
+      hmc(&P, x0, F, f, hmc_params);
+
+    min_ess = 0;
+
+    std::cout << "Hamiltonian Monte Carlo (Gaussian Density)" << std::endl;
+
+    if (eta > 0) hmc.solver->eta = eta;
+
+    std::cout << "Burn-in" << std::endl;
+
+    for (unsigned int i = 0; i < num_burns; i++) {
+      if (i % 1000 == 0) std::cout << ".";
+      hmc.apply(rng, walk_length);
+    }
+
+    hmc.disable_adaptive();
+    std::cout << std::endl;
+    std::cout << "Sampling" << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
+    for (unsigned int i = 0; i < max_actual_draws; i++) {
+      hmc.apply(rng, walk_length);
+      samples.col(i) = hmc.x.getCoefficients();
+      if (i % 1000 == 0 && i > 0) std::cout << ".";
+    }
+    stop = std::chrono::high_resolution_clock::now();
+
+    ETA = (NT) std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+    std::cout << std::endl;
+    print_diagnostics<NT, VT, MT>(samples, min_ess, std::cout);
+    std::cout << "Average time per sample: " << ETA / max_actual_draws << "us" << std::endl;
+    std::cout << "Average time per independent sample: " << ETA / min_ess << "us" << std::endl;
+    std::cout << "Average number of reflections: " <<
+        (1.0 * hmc.solver->num_reflections) / hmc.solver->num_steps << std::endl;
+    std::cout << "Step size (final): " << hmc.solver->eta << std::endl;
+    std::cout << "Discard Ratio: " << hmc.discard_ratio << std::endl;
+    std::cout << "Average Acceptance Probability: " << exp(hmc.average_acceptance_log_prob) << std::endl;
+    std::cout << std::endl;
+
+    max_psrf = check_interval_psrf<NT, VT, MT>(samples);
+
+    hmc_stats.method = "HMC";
+    hmc_stats.walk_length = walk_length;
+    hmc_stats.min_ess = min_ess;
+    hmc_stats.max_psrf = max_psrf;
+    hmc_stats.time_per_draw = ETA / max_actual_draws;
+    hmc_stats.time_per_independent_sample = ETA / min_ess;
+    hmc_stats.average_number_of_reflections = (1.0 * hmc.solver->num_reflections) / hmc.solver->num_steps;
+    hmc_stats.step_size = hmc.solver->eta;
+    hmc_stats.average_acceptance_log_prob  = exp(hmc.average_acceptance_log_prob);
+
+    return std::vector<SimulationStats<NT>>{rdhr_stats, hmc_stats};
+}
+
 
 
 template <typename NT, typename Polytope>
@@ -757,6 +880,81 @@ void call_test_benchmark_polytopes_grid_search() {
 
 }
 
+
+template <typename NT>
+void call_test_benchmark_spectrahedra_grid_search() {
+
+    typedef Eigen::Matrix<NT, Eigen::Dynamic, 1> VT;
+    typedef Eigen::Matrix <NT, Eigen::Dynamic, Eigen::Dynamic> MT;
+    typedef Cartesian<NT> Kernel;
+    typedef typename Kernel::Point    Point;
+    typedef Spectrahedron <NT, MT, VT> SPECTRAHEDRON;
+    typedef boost::mt19937 RNGType;
+
+    std::cout << " --- Grid search on spectrahedra " << std::endl;
+
+    std::vector<SimulationStats<NT>> results;
+    std::vector<std::tuple<SPECTRAHEDRON, std::string, bool>> spectrahedra;
+
+    Point objFunction;
+
+    SdpaFormatManager<NT> sdpaFormatManager;
+
+    std::ifstream in1;
+    SPECTRAHEDRON spectrahedron1;
+    in1.open("spectra_data/sdp_prob_200_15.txt", std::ifstream::in);
+    sdpaFormatManager.loadSDPAFormatFile(in1, spectrahedron1, objFunction);
+    spectrahedra.push_back(std::make_tuple(spectrahedron1, "S_200_15", true));
+
+    std::ifstream in2;
+    SPECTRAHEDRON spectrahedron2;
+    in2.open("spectra_data/sdp_prob_400_20.txt", std::ifstream::in);
+    sdpaFormatManager.loadSDPAFormatFile(in2, spectrahedron2, objFunction);
+    spectrahedra.push_back(std::make_tuple(spectrahedron2, "S_400_20", true));
+
+    std::ifstream in3;
+    SPECTRAHEDRON spectrahedron3;
+    in3.open("spectra_data/sdp_prob_600_25.txt", std::ifstream::in);
+    sdpaFormatManager.loadSDPAFormatFile(in3, spectrahedron3, objFunction);
+    spectrahedra.push_back(std::make_tuple(spectrahedron3, "S_600_25", true));
+
+    std::ifstream in4;
+    SPECTRAHEDRON spectrahedron4;
+    in4.open("spectra_data/sdp_prob_800_30.txt", std::ifstream::in);
+    sdpaFormatManager.loadSDPAFormatFile(in4, spectrahedron4, objFunction);
+    spectrahedra.push_back(std::make_tuple(spectrahedron4, "S_800_30", true));
+
+    std::ifstream in5;
+    SPECTRAHEDRON spectrahedron5;
+    in5.open("spectra_data/sdp_prob_1000_35.txt", std::ifstream::in);
+    sdpaFormatManager.loadSDPAFormatFile(in5, spectrahedron5, objFunction);
+    spectrahedra.push_back(std::make_tuple(spectrahedron5, "S_1000_35", true));
+
+
+    SPECTRAHEDRON P;
+    std::string name;
+    std::ofstream outfile;
+    NT step_size = 0;
+    std::pair<Point, NT> inner_ball;
+
+    for (std::tuple<SPECTRAHEDRON, std::string, bool> spectrahedron_tuple : spectrahedra) {
+        P = std::get<0>(spectrahedron_tuple);
+        name = std::get<1>(spectrahedron_tuple);
+        std::cout << name << std::endl;
+        outfile.open("results_" + name + "_new.txt");
+        //P.normalize();
+        //inner_ball = P.ComputeInnerBall();
+        step_size = 0.5;
+        for (unsigned int walk_length = P.dimension()/2; walk_length <= P.dimension(); walk_length += P.dimension() / 2) {
+            results = benchmark_spectrahedron_sampling<NT, SPECTRAHEDRON>(P, step_size, walk_length, std::get<2>(spectrahedron_tuple));
+            outfile << results[0];
+            outfile << results[1];
+        }
+        outfile.close();
+    }
+
+}
+
 template <typename NT>
 void call_test_optimization() {
     typedef Cartesian<NT>    Kernel;
@@ -768,6 +966,117 @@ void call_test_optimization() {
     Point coeffs = Point::all_ones(100);
 
     benchmark_polytope_linear_program_optimization<NT, Hpolytope>(coeffs, P);
+
+}
+
+template <typename NT>
+void call_test_benchmark_convex_body() {
+  typedef Cartesian<NT>    Kernel;
+  typedef typename Kernel::Point    Point;
+  typedef ConvexBody<Point> Convexbody;
+  typedef boost::mt19937 RNGType;
+  typedef BoostRandomNumberGenerator<RNGType, NT> RandomNumberGenerator;
+  typedef InnerBallFunctor::GradientFunctor<Point> NegativeGradientFunctor;
+  typedef InnerBallFunctor::FunctionFunctor<Point> NegativeLogprobFunctor;
+  typedef GeneralizedLeapfrogODESolver<Point, NT, Convexbody, NegativeGradientFunctor> Solver;
+  typedef typename Convexbody::MT MT;
+  typedef typename Convexbody::VT VT;
+
+  unsigned int dim = 1000;
+  // Convexbody P = generate_unit_ball<Convexbody>(dim);
+  Convexbody P = generate_unit_ball_intersect_logsumexp<Convexbody>(dim);
+
+  unsigned int max_draws = 40000;
+  unsigned int num_burns = max_draws / 3;
+
+  Point x0(dim);
+  NT R0 = NT(dim);
+
+  unsigned int walk_length = 1000;
+
+  SimulationStats<NT> hmc_stats;
+
+  // Random number generator
+  RandomNumberGenerator rng(1);
+
+  // Declare oracles
+  InnerBallFunctor::parameters<NT, Point> params(x0, R0);
+
+  NegativeGradientFunctor F(params);
+  NegativeLogprobFunctor f(params);
+
+  int max_actual_draws = max_draws - num_burns;
+  unsigned int min_ess = 0;
+
+  MT samples;
+  samples.resize(dim, max_actual_draws);
+  NT ETA;
+  NT max_psrf;
+
+  std::chrono::time_point<std::chrono::high_resolution_clock> start, stop;
+
+  std::cerr << std::endl;
+  std::cerr << "HMC Sampling" << std::endl;
+
+
+  HamiltonianMonteCarloWalk::parameters<NT, NegativeGradientFunctor> hmc_params(F, dim);
+
+  HamiltonianMonteCarloWalk::Walk
+    <Point, Convexbody, RandomNumberGenerator, NegativeGradientFunctor, NegativeLogprobFunctor, Solver>
+    hmc(&P, x0, F, f, hmc_params);
+
+  min_ess = 0;
+
+  std::cerr << "Hamiltonian Monte Carlo (Gaussian Density)" << std::endl;
+
+  hmc.solver->eta = 0.001;
+
+  std::cerr << "Burn-in" << std::endl;
+
+  for (unsigned int i = 0; i < num_burns; i++) {
+    if (i % 1000 == 0) std::cerr << ".";
+    hmc.apply(rng, walk_length);
+  }
+
+  hmc.disable_adaptive();
+  std::cerr << std::endl;
+  std::cerr << "Sampling" << std::endl;
+
+  start = std::chrono::high_resolution_clock::now();
+  for (unsigned int i = 0; i < max_actual_draws; i++) {
+    hmc.apply(rng, walk_length);
+    std::cout << hmc.x.getCoefficients().transpose() << std::endl;
+
+    samples.col(i) = hmc.x.getCoefficients();
+    if (i % 1000 == 0 && i > 0) std::cerr << ".";
+  }
+  stop = std::chrono::high_resolution_clock::now();
+
+  ETA = (NT) std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+  std::cerr << std::endl;
+  print_diagnostics<NT, VT, MT>(samples, min_ess, std::cerr);
+  std::cerr << "Average time per sample: " << ETA / max_actual_draws << "us" << std::endl;
+  std::cerr << "Average time per independent sample: " << ETA / min_ess << "us" << std::endl;
+  std::cerr << "Average number of reflections: " <<
+      (1.0 * hmc.solver->num_reflections) / hmc.solver->num_steps << std::endl;
+  std::cerr << "Step size (final): " << hmc.solver->eta << std::endl;
+  std::cerr << "Discard Ratio: " << hmc.discard_ratio << std::endl;
+  std::cerr << "Average Acceptance Probability: " << exp(hmc.average_acceptance_log_prob) << std::endl;
+  std::cerr << std::endl;
+  std::cerr << "Min ESS" << min_ess << std::endl;
+
+  max_psrf = check_interval_psrf<NT, VT, MT>(samples);
+
+  hmc_stats.method = "HMC";
+  hmc_stats.walk_length = walk_length;
+  hmc_stats.min_ess = min_ess;
+  hmc_stats.max_psrf = max_psrf;
+  hmc_stats.time_per_draw = ETA / max_actual_draws;
+  hmc_stats.time_per_independent_sample = ETA / min_ess;
+  hmc_stats.average_number_of_reflections = (1.0 * hmc.solver->num_reflections) / hmc.solver->num_steps;
+  hmc_stats.step_size = hmc.solver->eta;
+  hmc_stats.average_acceptance_log_prob  = exp(hmc.average_acceptance_log_prob);
 
 }
 
@@ -793,4 +1102,12 @@ TEST_CASE("benchmark_hmc_truncated") {
 
 TEST_CASE("benchmark_polytopes_grid_search") {
     call_test_benchmark_polytopes_grid_search<double>();
+}
+
+TEST_CASE("benchmark_convex_body") {
+    call_test_benchmark_convex_body<double>();
+}
+
+TEST_CASE("benchmark_spectrahedra_grid_search") {
+    call_test_benchmark_spectrahedra_grid_search<double>();
 }

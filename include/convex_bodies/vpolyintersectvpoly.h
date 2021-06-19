@@ -357,6 +357,10 @@ public:
 
     void normalize() {}
 
+    void resetFlags() {}
+
+    void update_position_internal(NT&){}
+    
     void compute_reflection (Point &v, const Point &p, const int &facet) const {
 
         if (facet == 1) {

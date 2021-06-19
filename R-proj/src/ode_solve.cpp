@@ -20,7 +20,7 @@
 #include "volume/volume_cooling_gaussians.hpp"
 #include "sampling/sampling.hpp"
 #include "ode_solvers/ode_solvers.hpp"
-#include "ode_solvers/oracle_functors_rcpp.hpp"
+#include "oracle_functors_rcpp.h"
 
 template <
   typename Solver,

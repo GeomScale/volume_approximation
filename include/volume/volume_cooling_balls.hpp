@@ -687,7 +687,7 @@ NT estimate_ratio_interval(PolyBall1 const& Pb1,
 
 
 template <typename NT>
-NT log_gamma_function(NT x) 
+NT log_gamma_function(NT x)
 {
     if (x <= NT(100)) return std::log(tgamma(x));
     return (std::log(x - NT(1)) + log_gamma_function(x - NT(1)));

@@ -580,6 +580,10 @@ public:
         v += a;
     }
 
+    void resetFlags() {}
+
+    void update_position_internal(NT&){}
+
     template <class bfunc, class NonLinearOracle>
     std::tuple<NT, Point, int> curve_intersect(
         NT t_prev,

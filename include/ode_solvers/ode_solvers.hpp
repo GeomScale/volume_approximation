@@ -49,6 +49,7 @@
 #include "ode_solvers/richardson_extrapolation.hpp"
 #include "ode_solvers/oracle_functors.hpp"
 #include "ode_solvers/randomized_midpoint.hpp"
+#include "ode_solvers/generalized_leapfrog.hpp"
 
 #ifndef DISABLE_NLP_ORACLES
 #include "ode_solvers/collocation.hpp"

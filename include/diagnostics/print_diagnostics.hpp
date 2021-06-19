@@ -28,6 +28,8 @@ void print_diagnostics(MT const& samples, unsigned int &min_ess, StreamType &str
     VT ess = effective_sample_size<NT, VT, MT>(samples, min_ess);
     VT intv_psrf = interval_psrf<VT, NT, MT>(samples);
 
+    //std::cout << "interval_psrf =  " << intv_psrf.maxCoeff() << "us" << std::endl;
+
     NT row_mean, row_std;
 
     vt.setColumnPrecision({1, 3, 3, 3, 3});
@@ -49,6 +51,7 @@ void print_diagnostics(MT const& samples, unsigned int &min_ess, StreamType &str
     }
 
     vt.print(stream);
+    std::cout << "interval_psrf =  " << intv_psrf.maxCoeff() << "us" << std::endl;
 }
 
 

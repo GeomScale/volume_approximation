@@ -542,6 +542,10 @@ public:
         a *= (-2.0 * v.dot(a));
         v += a;
     }
+    
+    void resetFlags() {}
+
+    void update_position_internal(NT&){}
 
     template <typename update_parameters>
     void compute_reflection(Point &v, const Point &p, update_parameters const& params) const {

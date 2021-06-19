@@ -372,6 +372,11 @@ sample_points <- function(P, n, random_walk = NULL, distribution = NULL, seed = 
     .Call(`_volesti_sample_points`, P, n, random_walk, distribution, seed)
 }
 
+#' @export
+sample_spectra <- function(file = NULL, N = NULL, walk_length = NULL) {
+    .Call(`_volesti_sample_spectra`, file, N, walk_length)
+}
+
 #' Write a SDPA format file
 #'
 #' Outputs a spectrahedron (the matrices defining a linear matrix inequality) and a vector (the objective function)

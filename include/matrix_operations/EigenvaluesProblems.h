@@ -14,18 +14,18 @@
 /// Eigen solver for generalized eigenvalue problem
 //#define EIGEN_EIGENVALUES_SOLVER
 /// Spectra standard eigenvalue problem
-//#define SPECTRA_EIGENVALUES_SOLVER
+#define SPECTRA_EIGENVALUES_SOLVER
 /// ARPACK++ standard eigenvalues solver
-#define ARPACK_EIGENVALUES_SOLVER
+//#define ARPACK_EIGENVALUES_SOLVER
 
-#include <../../external/arpack++/include/arssym.h>
+//#include <../../external/arpack++/include/arssym.h>
 #include <../../external/Spectra/include/Spectra/SymEigsSolver.h>
 #include "DenseProductMatrix.h"
 #include "EigenDenseMatrix.h"
 
 #include "../../external/Spectra/include/Spectra/SymGEigsSolver.h"
 #include "../../external/Spectra/include/Spectra/GenEigsSolver.h"
-#include "../../external/arpack++/include/arsnsym.h"
+//#include "../../external/arpack++/include/arsnsym.h"
 
 /// Solve eigenvalues problems
 /// \tparam NT Numeric Type
@@ -284,6 +284,49 @@ public:
 
 #endif
 //        std::cout << lambdaMinPositive << " " << eigenvector.transpose() << "\n";fflush(stdout);
+        return lambdaMinPositive;
+    }
+
+    /// Find the minimum positive and maximum negative eigenvalues of the generalized eigenvalue
+    /// problem A + lB, where A, B symmetric and A negative definite.
+    /// \param[in] A Input matrix
+    /// \param[in] B Input matrix
+    /// \return The pair (minimum positive, maximum negative) of eigenvalues
+    NT minPosLinearEigenvalue(MT const & A, MT const & B, VT &eigvec) 
+    {
+        int matrixDim = A.rows();
+        double lambdaMinPositive;
+
+        Spectra::DenseSymMatProd<NT> op(B);
+        Spectra::DenseCholesky<NT> Bop(-A);
+        //std::cout<<"A = "<<Eigen::MatrixXd(A)<<"\n\n"<<std::endl;
+        //std::cout<<"B = "<<Eigen::MatrixXd(B)<<"\n\n"<<std::endl;
+
+        // Construct generalized eigen solver object, requesting the largest three generalized eigenvalues
+        Spectra::SymGEigsSolver<NT, Spectra::LARGEST_ALGE,  Spectra::DenseSymMatProd<NT>, Spectra::DenseCholesky<NT>, Spectra::GEIGS_CHOLESKY> 
+            geigs(&op, &Bop, 1, 15 < matrixDim ? 15 : matrixDim);
+
+        // Initialize and compute
+        geigs.init();
+        int nconv = geigs.compute();
+
+        // Retrieve results
+        VT evalues;
+        //Eigen::MatrixXd evecs;
+
+        if (geigs.info() == Spectra::SUCCESSFUL) {
+            evalues = geigs.eigenvalues();
+            eigvec = geigs.eigenvectors().col(0);
+        }
+
+        lambdaMinPositive = 1 / evalues(0);
+
+        //std::cout<<"lambdaMinPositive = "<<lambdaMinPositive<<std::endl;
+        //std::cout<<"eigvec = "<<eigvec.transpose()<<"\n\n"<<std::endl;
+
+        //std::cout<<"lBx = "<<lambdaMinPositive*(B.template selfadjointView< Eigen::Lower >()*eigvec).transpose()<<"\n"<<std::endl;
+        //std::cout<<"Ax = "<<(((-A).template selfadjointView< Eigen::Lower >()*eigvec).transpose())<<"\n\n"<<std::endl;
+
         return lambdaMinPositive;
     }
 

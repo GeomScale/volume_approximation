@@ -82,6 +82,7 @@ struct LeapfrogODESolver {
               ar = Ks[i]->get_mat() * xs[i].getCoefficients();
               av.setZero(Ks[i]->num_of_hyperplanes());
               _AA.noalias() = Ks[i]->get_mat() * Ks[i]->get_mat().transpose();
+              Ks[i]->resetFlags();
           }
           Ar.push_back(ar);
           Av.push_back(av);
@@ -129,6 +130,7 @@ struct LeapfrogODESolver {
         if (k == 0 && !accepted) {
           Ar[x_index] = Ks[x_index]->get_mat() * xs_prev[x_index].getCoefficients();
           lambda_prev[x_index] = 0.0;
+          Ks[x_index]->resetFlags();
         }
 
         pbpair =  Ks[x_index]->line_positive_intersect(xs_prev[x_index], y, Ar[x_index], Av[x_index],
@@ -137,6 +139,7 @@ struct LeapfrogODESolver {
           xs[x_index] = xs_prev[x_index] + T * y;
           xs[v_index] = y;
           lambda_prev[x_index] = T;
+          Ks[x_index]->update_position_internal(T);
           step_completed = true;
         }
 
@@ -144,6 +147,7 @@ struct LeapfrogODESolver {
           lambda_prev[x_index] = dl * pbpair.first;
           xs_prev[x_index] = xs_prev[x_index] + lambda_prev[x_index] * y;
           T -= lambda_prev[x_index];
+          Ks[x_index]->update_position_internal(lambda_prev[x_index]);
           Ks[x_index]->compute_reflection(y, xs_prev[x_index], _update_parameters);
           num_reflections++;
 
@@ -155,11 +159,13 @@ struct LeapfrogODESolver {
               xs[x_index] = xs_prev[x_index] + T * y;
               xs[v_index] = y;
               lambda_prev[x_index] = T;
+              Ks[x_index]->update_position_internal(T);
               break;
             }
             lambda_prev[x_index] = dl * pbpair.first;
             xs_prev[x_index] = xs_prev[x_index] + lambda_prev[x_index] * y;
             T -= lambda_prev[x_index];
+            Ks[x_index]->update_position_internal(lambda_prev[x_index]);
             Ks[x_index]->compute_reflection(y, xs_prev[x_index], _update_parameters);
             num_reflections++;
           }
