@@ -39,7 +39,7 @@ std::tuple<MT, VT, NT> max_inscribed_ellipsoid_rounding(Polytope &P,
     while (true)
     {
         // compute the largest inscribed ellipsoid in P centered at x0
-        iter_res = max_inscribed_ellipsoid(P.get_mat(), P.get_vec(), x0, maxiter, tol, reg);
+        iter_res = max_inscribed_ellipsoid<MT>(P.get_mat(), P.get_vec(), x0, maxiter, tol, reg);
         E = iter_res.first.first;
         E = (E + E.transpose()) / 2.0;
         E = E + MT::Identity(d, d)*std::pow(10, -8.0); //normalize E

@@ -2,14 +2,20 @@
 
 // Copyright (c) 2012-2020 Vissarion Fisikopoulos
 // Copyright (c) 2018-2020 Apostolos Chalkis
+// Copyright (c) 2021-     Vaibhav Thakkar
 
 //Contributed and/or modified by Alexandros Manochis, as part of Google Summer of Code 2020 program.
+//Contributed and/or modified by Vaibhav Thakkar, as part of Google Summer of Code 2021 program.
 
 // Licensed under GNU LGPL.3, see LICENCE file
 
 
 #ifndef MVE_COMPUTATION_HPP
 #define MVE_COMPUTATION_HPP
+
+#include <utility>
+#include <Eigen/Eigen>
+
 
 /* 
     Implementation of the interior point method to compute the largest inscribed ellipsoid in a
@@ -28,11 +34,14 @@
             matrix V = E_transpose * E
 */
 
-template <typename MT, typename VT, typename NT>
-std::pair<std::pair<MT, VT>, bool> max_inscribed_ellipsoid(MT A, VT b, VT const& x0,
+// using Custom_MT as to deal with both dense and sparse matrices, MT will be the type of result matrix
+template <typename MT, typename Custom_MT, typename VT, typename NT>
+std::pair<std::pair<MT, VT>, bool> max_inscribed_ellipsoid(Custom_MT A, VT b, VT const& x0,
                                                    unsigned int const& maxiter, 
                                                    NT const& tol, NT const& reg)
 {
+    typedef Eigen::DiagonalMatrix<NT, Eigen::Dynamic> DT;
+
     int m = A.rows(), n = A.cols();
     bool converged = false;
 
@@ -53,20 +62,22 @@ std::pair<std::pair<MT, VT>, bool> max_inscribed_ellipsoid(MT A, VT b, VT const&
 
     VT const bmAx0 = b - A * x0, ones_m = VT::Ones(m);
 
-    MT Q(m, m), Y(m, m), E2(n, n), YQ(m,m), YA(m, n), G(m,m), T(m,n), ATP(n,m), ATP_A(n,n);
+    MT Q(m, m), E2(n, n), YQ(m,m), G(m,m), T(m,n), ATP(n,m), ATP_A(n,n); 
+    DT Y(m);
+    Custom_MT YA(m, n);
 
     A = (ones_m.cwiseProduct(bmAx0.cwiseInverse())).asDiagonal() * A, b = ones_m;
-
-    MT A_trans = A.transpose();
+    Custom_MT A_trans = A.transpose();
 
     int i = 1;
     while (i <= maxiter) {
 
-        Y = y.asDiagonal();
-        E2.noalias() = (A_trans * Y * A).inverse();
+        Y = y.asDiagonal(); 
+        
+        E2.noalias() = MT(A_trans * Y * A).inverse();
 
         Q.noalias() = A * E2 * A_trans;
-        h = Q.diagonal();
+        h = Q.diagonal();             
         h = h.cwiseSqrt();
 
         if (i == 1) {
@@ -84,7 +95,7 @@ std::pair<std::pair<MT, VT>, bool> max_inscribed_ellipsoid(MT A, VT b, VT const&
                 vec_iter3++;
             }
             Q *= (t * t);
-            Y *= (1.0 / (t * t));
+            Y = Y * (1.0 / (t * t));
         }
 
         yz = y.cwiseProduct(z);
@@ -140,7 +151,7 @@ std::pair<std::pair<MT, VT>, bool> max_inscribed_ellipsoid(MT A, VT b, VT const&
         YQ.noalias() = Y * Q;
         G = YQ.cwiseProduct(YQ.transpose());
         y2h = 2.0 * yh;
-        YA.noalias() = Y * A;
+        YA = Y * A;
 
         vec_iter1 = y2h.data();
         vec_iter2 = z.data();
@@ -156,9 +167,9 @@ std::pair<std::pair<MT, VT>, bool> max_inscribed_ellipsoid(MT A, VT b, VT const&
         h_z = h + z;
 
         for (int j = 0; j < n; ++j) {
-            T.col(j) = G.colPivHouseholderQr().solve(YA.col(j).cwiseProduct(h_z));
+            T.col(j) = G.colPivHouseholderQr().solve( VT(YA.col(j).cwiseProduct(h_z)) );
         }
-        ATP.noalias() = (y2h.asDiagonal()*T - YA).transpose();
+        ATP.noalias() = MT(y2h.asDiagonal()*T - YA).transpose();
 
         vec_iter1 = R3.data();
         vec_iter2 = y.data();

@@ -20,7 +20,7 @@
 #include "volume/volume_cooling_gaussians.hpp"
 #include "volume/volume_cooling_balls.hpp"
 
-#include "preprocess/min_sampling_covering_ellipsoid_rounding.hpp"
+#include "preprocess/max_inscribed_ellipsoid_rounding.hpp"
 
 #include "known_polytope_generators.h"
 
@@ -62,11 +62,10 @@ void rounding_test(Polytope &HP,
     RNGType rng(d);
 
     std::pair<Point, NT> InnerBall = HP.ComputeInnerBall();
-    std::tuple<MT, VT, NT> res = min_sampling_covering_ellipsoid_rounding<CDHRWalk, MT, VT>(HP, InnerBall,
-                                                                                            10 + 10 * d, rng);
+    std::tuple<MT, VT, NT> res = max_inscribed_ellipsoid_rounding<MT, VT, NT>(HP, InnerBall.first);
 
     // Setup the parameters
-    int walk_len = 1;
+    int walk_len = 10;
     NT e = 0.1;
 
     // Estimate the volume
@@ -74,8 +73,8 @@ void rounding_test(Polytope &HP,
 
 
     //TODO: low accuracy in high dimensions
-    //NT volume = res.second * volume_cooling_balls<BallWalk, RNGType>(HP, e, walk_len);
-    //test_values(volume, expectedBall, exact);
+    // NT volume = res.second * volume_cooling_balls<BallWalk, RNGType>(HP, e, walk_len);
+    // test_values(volume, expectedBall, exact);
 
     NT volume = std::get<2>(res) * volume_cooling_balls<CDHRWalk, RNGType>(HP, e, walk_len).second;
     test_values(volume, expectedCDHR, exact);
@@ -118,6 +117,4 @@ void call_test_skinny_cubes() {
 
 TEST_CASE("round_skinny_cube") {
     call_test_skinny_cubes<double>();
-    //call_test_skinny_cubes<float>();
-    //call_test_skinny_cubes<long double>();
 }
