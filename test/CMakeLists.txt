@@ -142,6 +142,7 @@ else ()
   include_directories (BEFORE ../include/generators)
   include_directories (BEFORE ../include/volume)
   include_directories (BEFORE ../include)
+  include_directories (BEFORE ../include/integration)
   include_directories (BEFORE ../include/convex_bodies)
   include_directories (BEFORE ../include/convex_bodies/spectrahedra)
   include_directories (BEFORE ../include/annealing)
@@ -258,6 +259,19 @@ else ()
   add_test(NAME logconcave_sampling_test_uld
           COMMAND logconcave_sampling_test -tc=uld)
 
+  add_executable (simple_mc_integration simple_mc_integration.cpp $<TARGET_OBJECTS:test_main>)
+  add_test(NAME simple_mc_integration_over_limits 
+          COMMAND simple_mc_integration -tc=rectangle)
+  add_test(NAME simple_mc_integration_over_cubes 
+          COMMAND simple_mc_integration -tc=cube)
+  add_test(NAME simple_mc_integration_over_simplices 
+          COMMAND simple_mc_integration -tc=simplex)
+  add_test(NAME simple_mc_integration_over_product_simplices
+		  COMMAND simple_mc_integration -tc=prod_simplex)
+  add_test(NAME simple_mc_integration_over_cross_polytopes
+		  COMMAND simple_mc_integration -tc=cross)
+  add_test(NAME simple_mc_integration_over_birkhoff_polytopes
+		  COMMAND simple_mc_integration -tc=birkhoff)
 
   TARGET_LINK_LIBRARIES(new_volume_example ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(volume_sob_hpolytope ${LP_SOLVE})
@@ -272,6 +286,7 @@ else ()
   TARGET_LINK_LIBRARIES(mcmc_diagnostics_test ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(benchmarks_sob ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(benchmarks_cg ${LP_SOLVE})
+  TARGET_LINK_LIBRARIES(simple_mc_integration ${LP_SOLVE})  
   TARGET_LINK_LIBRARIES(benchmarks_cb ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(ode_solvers_test ${LP_SOLVE} ${IFOPT} ${IFOPT_IPOPT} ${PTHREAD} ${GMP} ${MPSOLVE} ${FFTW3})
   TARGET_LINK_LIBRARIES(boundary_oracles_test ${LP_SOLVE} ${IFOPT} ${IFOPT_IPOPT} ${PTHREAD} ${GMP} ${MPSOLVE} ${FFTW3})
