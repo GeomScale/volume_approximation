@@ -1,0 +1,5 @@
+_deps
+CMakeFiles
+*cmake
+Makefile
+compile_commands.json
