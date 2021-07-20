@@ -1,6 +1,8 @@
 # VolEsti (volume computation and sampling library)
 # Copyright (c) 2012-2020 Vissarion Fisikopoulos
 # Copyright (c) 2018-2020 Apostolos Chalkis
+# Copyright (c) 2021- Vaibhav Thakkar
+
 # Contributed and/or modified by Vaibhav Thakkar
 # Licensed under GNU LGPL.3, see LICENCE file
 
@@ -258,6 +260,12 @@ else ()
   add_test(NAME logconcave_sampling_test_uld
           COMMAND logconcave_sampling_test -tc=uld)
 
+  add_executable (order_polytope order_polytope.cpp $<TARGET_OBJECTS:test_main>)
+  add_test(NAME order_polytope_basics COMMAND order_polytope -tc=basics)
+  add_test(NAME order_polytope_line_intersect COMMAND order_polytope -tc=line_intersect)
+  add_test(NAME order_polytope_reflection COMMAND order_polytope -tc=reflection)
+  add_test(NAME order_polytope_vec_mult COMMAND order_polytope -tc=vec_mult)
+
 
   TARGET_LINK_LIBRARIES(new_volume_example ${LP_SOLVE})
   TARGET_LINK_LIBRARIES(volume_sob_hpolytope ${LP_SOLVE})
@@ -282,6 +290,8 @@ else ()
   else()
       TARGET_LINK_LIBRARIES(logconcave_sampling_test ${LP_SOLVE} ${IFOPT} ${IFOPT_IPOPT} ${PTHREAD} ${GMP} ${MPSOLVE} ${FFTW3} ${BLAS})
   endif()
+
+  TARGET_LINK_LIBRARIES(order_polytope ${LP_SOLVE})
 
 
 endif()
